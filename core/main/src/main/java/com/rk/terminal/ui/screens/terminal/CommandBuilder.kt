@@ -15,6 +15,47 @@ import java.io.File
 object CommandBuilder {
     
     /**
+     * Create wrapper script for nsenter into existing namespace
+     */
+    private fun createNsenterScript(alpineDir: File, nsPid: String): File {
+        val scriptFile = File(localBinDir(), "nsenter-shared.sh")
+        val scriptContent = """#!/system/bin/sh
+# Script to enter existing shared namespace
+
+ALPINE_DIR="${alpineDir.absolutePath}"
+NS_PID="$nsPid"
+
+# Enter namespace and start shell in background
+nsenter -t "${'$'}NS_PID" -m -p -u -i chroot "${'$'}ALPINE_DIR" /bin/sh -c 'cd /root && (setsid /bin/sh </dev/null >/dev/null 2>&1 &) && sleep 0.1'
+"""
+        scriptFile.writeText(scriptContent)
+        // Set owner-only read/write permissions (no execute needed since we use sh script.sh)
+        scriptFile.setReadable(true, true)
+        scriptFile.setWritable(true, true)
+        return scriptFile
+    }
+    
+    /**
+     * Create wrapper script for basic chroot (no namespace)
+     */
+    private fun createBasicChrootScript(alpineDir: File): File {
+        val scriptFile = File(localBinDir(), "chroot-basic.sh")
+        val scriptContent = """#!/system/bin/sh
+# Script for basic chroot without namespace
+
+ALPINE_DIR="${alpineDir.absolutePath}"
+
+# Execute chroot and start shell in /root
+chroot "${'$'}ALPINE_DIR" /bin/sh -c 'cd /root && exec /bin/sh'
+"""
+        scriptFile.writeText(scriptContent)
+        // Set owner-only read/write permissions (no execute needed since we use sh script.sh)
+        scriptFile.setReadable(true, true)
+        scriptFile.setWritable(true, true)
+        return scriptFile
+    }
+    
+    /**
      * Create wrapper script for isolated chroot setup
      */
     private fun createIsolatedChrootScript(alpineDir: File): File {
@@ -121,13 +162,14 @@ wait
         alpineDir: File,
         useSu: Boolean
     ): Array<String> {
-        // Simple chroot command - mounts handled separately by ContainerSetup
-        val chrootPath = alpineDir.absolutePath
+        // Create wrapper script for chroot execution
+        val scriptFile = createBasicChrootScript(alpineDir)
+        val scriptPath = scriptFile.absolutePath
         
         return if (useSu) {
-            arrayOf("su", "-c", "chroot $chrootPath /bin/sh -c 'cd /root && exec /bin/sh'")
+            arrayOf("su", "-c", "/system/bin/sh $scriptPath")
         } else {
-            arrayOf("chroot", chrootPath, "/bin/sh", "-c", "cd /root && exec /bin/sh")
+            arrayOf("/system/bin/sh", scriptPath)
         }
     }
     
@@ -169,7 +211,10 @@ wait
             NamespaceSessionDaemon.registerSession(prefix)
         }
         
-        val isFirstSession = nsInfo?.sessionCount == 1
+        // Treat as first session if: 
+        // 1. NamespaceSessionDaemon says it's the first session, OR
+        // 2. PID file doesn't exist (edge case: daemon says session exists but file is missing)
+        val isFirstSession = nsInfo?.sessionCount == 1 || !namespacePidFile.exists()
         
         return if (isFirstSession) {
             // First session: create namespace with /sbin/init as PID 1
@@ -183,14 +228,17 @@ wait
                 arrayOf("unshare", "-a", "-f", "/system/bin/sh", scriptPath)
             }
         } else {
-            // Subsequent sessions: join existing namespace and use /bin/sh
+            // Subsequent sessions: join existing namespace
             val nsPid = namespacePidFile.readText().trim()
-            val chrootShell = "chroot $chrootPath /bin/sh -c 'cd /root && (setsid /bin/sh </dev/null >/dev/null 2>&1 &) && sleep 0.1'"
+            
+            // Create wrapper script for nsenter
+            val scriptFile = createNsenterScript(alpineDir, nsPid)
+            val scriptPath = scriptFile.absolutePath
             
             if (useSu) {
-                arrayOf("su", "-c", "nsenter -t $nsPid -m -p -u -i $chrootShell")
+                arrayOf("su", "-c", "/system/bin/sh $scriptPath")
             } else {
-                arrayOf("nsenter", "-t", nsPid, "-m", "-p", "-u", "-i", "chroot", chrootPath, "/bin/sh", "-c", "cd /root && (setsid /bin/sh </dev/null >/dev/null 2>&1 &) && sleep 0.1")
+                arrayOf("/system/bin/sh", scriptPath)
             }
         }
     }
