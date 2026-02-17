@@ -20,6 +20,9 @@ fi
 # Determine unshare mode: 0=OWN_NS, 1=FIRST_ONLY, 2=NO_UNSHARE
 UNSHARE_MODE=${UNSHARE_MODE:-1}
 
+# Flag file to track first session
+FIRST_SESSION_FLAG="$PROOT_TMP_DIR/../first_session_pid"
+
 # Check if we should unshare or nsenter
 SHOULD_UNSHARE=0
 NSENTER_PID=""
@@ -29,12 +32,18 @@ if [ "$UNSHARE_MODE" -eq 0 ]; then
     SHOULD_UNSHARE=1
 elif [ "$UNSHARE_MODE" -eq 1 ]; then
     # FIRST_ONLY: Check if first session exists
-    if [ -n "$FIRST_SESSION_PID" ] && [ -d "/proc/$FIRST_SESSION_PID" ]; then
-        # First session exists, we should nsenter
-        SHOULD_UNSHARE=0
-        NSENTER_PID="$FIRST_SESSION_PID"
+    if [ -f "$FIRST_SESSION_FLAG" ]; then
+        NSENTER_PID=$(cat "$FIRST_SESSION_FLAG")
+        if [ -d "/proc/$NSENTER_PID" ]; then
+            # First session exists, we should nsenter
+            SHOULD_UNSHARE=0
+        else
+            # PID in flag file doesn't exist, create new first session
+            SHOULD_UNSHARE=1
+            rm -f "$FIRST_SESSION_FLAG"
+        fi
     else
-        # First session doesn't exist, we should unshare
+        # No first session, we should unshare
         SHOULD_UNSHARE=1
     fi
 elif [ "$UNSHARE_MODE" -eq 2 ]; then
@@ -73,11 +82,15 @@ if [ "$SHOULD_UNSHARE" -eq 1 ]; then
     # -p: unshare PID namespace
     # -u: unshare UTS namespace
     
-    # Note: We need to mount before chroot since we're in a new mount namespace
     # Create a script to run in the namespace
     cat > "$PROOT_TMP_DIR/chroot-exec.sh" << 'EOFSCRIPT'
 #!/system/bin/sh
 set -e
+
+# Save our PID for FIRST_ONLY mode
+if [ "$UNSHARE_MODE" -eq 1 ] && [ -n "$FIRST_SESSION_FLAG" ]; then
+    echo $$ > "$FIRST_SESSION_FLAG"
+fi
 
 # Mount system directories
 for system_mnt in /apex /odm /product /system /system_ext /vendor; do
@@ -103,6 +116,10 @@ exec chroot "$1" /sbin/init "$@"
 EOFSCRIPT
     
     chmod +x "$PROOT_TMP_DIR/chroot-exec.sh"
+    
+    # Export variables for the script
+    export UNSHARE_MODE
+    export FIRST_SESSION_FLAG
     
     # Execute with unshare, using exec to preserve PID
     exec unshare -C -i -m -n -p -u -f --mount-proc "$PROOT_TMP_DIR/chroot-exec.sh" "$ALPINE_DIR" "$@"

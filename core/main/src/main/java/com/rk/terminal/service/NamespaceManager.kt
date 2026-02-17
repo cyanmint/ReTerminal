@@ -6,21 +6,20 @@ import java.util.concurrent.ConcurrentHashMap
  * Manages namespace sessions for chroot mode with unshare/nsenter
  */
 object NamespaceManager {
-    // Map of session ID to PID of init process in that namespace
-    private val namespacePids = ConcurrentHashMap<String, Int>()
+    // Set of active session IDs in chroot mode
+    private val activeSessions = ConcurrentHashMap.newKeySet<String>()
     
-    // Track the first session's PID for FIRST_ONLY mode
-    private var firstSessionPid: Int? = null
+    // Track the first session ID for FIRST_ONLY mode
+    private var firstSessionId: String? = null
     
     /**
      * Register a new namespace session
      * @param sessionId The session identifier
-     * @param pid The PID of the init process in the namespace
      */
-    fun registerNamespace(sessionId: String, pid: Int) {
-        namespacePids[sessionId] = pid
-        if (firstSessionPid == null) {
-            firstSessionPid = pid
+    fun registerNamespace(sessionId: String) {
+        activeSessions.add(sessionId)
+        if (firstSessionId == null) {
+            firstSessionId = sessionId
         }
     }
     
@@ -29,40 +28,33 @@ object NamespaceManager {
      * @param sessionId The session identifier
      */
     fun unregisterNamespace(sessionId: String) {
-        val pid = namespacePids.remove(sessionId)
+        activeSessions.remove(sessionId)
         // If we removed the first session, clear it
-        if (pid == firstSessionPid && namespacePids.isEmpty()) {
-            firstSessionPid = null
+        if (sessionId == firstSessionId && activeSessions.isEmpty()) {
+            firstSessionId = null
         }
     }
     
     /**
-     * Get the PID to nsenter for FIRST_ONLY mode
-     * @return The PID of the first session, or null if no sessions exist
+     * Check if the first session exists
+     * @return true if first session is active
      */
-    fun getFirstSessionPid(): Int? {
-        return firstSessionPid
+    fun hasFirstSession(): Boolean {
+        return firstSessionId != null && activeSessions.contains(firstSessionId)
     }
     
     /**
      * Check if any namespace sessions exist
      */
     fun hasActiveSessions(): Boolean {
-        return namespacePids.isNotEmpty()
-    }
-    
-    /**
-     * Get the PID for a specific session
-     */
-    fun getSessionPid(sessionId: String): Int? {
-        return namespacePids[sessionId]
+        return activeSessions.isNotEmpty()
     }
     
     /**
      * Clear all namespace tracking (should only be called when all sessions are terminated)
      */
     fun clear() {
-        namespacePids.clear()
-        firstSessionPid = null
+        activeSessions.clear()
+        firstSessionId = null
     }
 }

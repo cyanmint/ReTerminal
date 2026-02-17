@@ -14,9 +14,7 @@ import com.rk.settings.Settings
 import com.rk.terminal.App
 import com.rk.terminal.App.Companion.getTempDir
 import com.rk.terminal.BuildConfig
-import com.rk.terminal.service.NamespaceManager
 import com.rk.terminal.ui.activities.terminal.MainActivity
-import com.rk.terminal.ui.screens.settings.UnshareMode
 import com.rk.terminal.ui.screens.settings.WorkingMode
 import com.termux.terminal.TerminalEmulator
 import com.termux.terminal.TerminalSession
@@ -98,16 +96,9 @@ object MkSession {
                 env.add("SECCOMP=1")
             }
 
-            // Add unshare mode and first session PID for CHROOT mode
+            // Add unshare mode for CHROOT mode
             if (workingMode == WorkingMode.CHROOT) {
-                env.add("UNSHARE_MODE=${Settings.unshare_mode}")
-                
-                // For FIRST_ONLY mode, pass the first session PID if it exists
-                if (Settings.unshare_mode == UnshareMode.FIRST_ONLY) {
-                    NamespaceManager.getFirstSessionPid()?.let {
-                        env.add("FIRST_SESSION_PID=$it")
-                    }
-                }
+                env.add("UNSHARE_MODE=${com.rk.settings.Settings.unshare_mode}")
             }
 
 

@@ -14,8 +14,6 @@ import androidx.core.app.NotificationCompat
 import com.rk.resources.drawables
 import com.rk.resources.strings
 import com.rk.terminal.ui.activities.terminal.MainActivity
-import com.rk.terminal.ui.screens.settings.Settings
-import com.rk.terminal.ui.screens.settings.UnshareMode
 import com.rk.terminal.ui.screens.settings.WorkingMode
 import com.rk.terminal.ui.screens.terminal.MkSession
 import com.termux.terminal.TerminalSession
@@ -44,15 +42,9 @@ class SessionService : Service() {
                 sessions[id] = it
                 sessionList[id] = workingMode
                 
-                // Track namespace PID for CHROOT mode with unshare
-                if (workingMode == WorkingMode.CHROOT && Settings.unshare_mode != UnshareMode.NO_UNSHARE) {
-                    // Register the namespace after a short delay to allow the process to start
-                    // The PID will be the shell process PID
-                    it.mMainThreadHandler?.postDelayed({
-                        it.pid?.let { pid ->
-                            NamespaceManager.registerNamespace(id, pid)
-                        }
-                    }, 100)
+                // Track namespace session for CHROOT mode
+                if (workingMode == WorkingMode.CHROOT) {
+                    NamespaceManager.registerNamespace(id)
                 }
                 
                 updateNotification()
