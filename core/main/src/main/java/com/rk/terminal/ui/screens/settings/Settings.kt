@@ -189,6 +189,15 @@ fun Settings(modifier: Modifier = Modifier,navController: NavController,mainActi
                         sideEffect = {
                             Settings.share_namespace = it
                         })
+                    
+                    SettingsToggle(
+                        label = "Ensure PID 1",
+                        description = "Make init process PID 1 in Alpine (requires unshare)",
+                        showSwitch = true,
+                        default = Settings.ensure_pid_1,
+                        sideEffect = {
+                            Settings.ensure_pid_1 = it
+                        })
                 }
             }
         }

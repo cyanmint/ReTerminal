@@ -47,6 +47,7 @@ object MkSession {
             val initScriptName = when {
                 containerMode == ContainerMode.PROOT -> "init-host.sh"
                 containerMode == ContainerMode.CHROOT && !Settings.use_unshare -> "init-host-chroot-nons.sh"
+                containerMode == ContainerMode.CHROOT && Settings.use_unshare && Settings.ensure_pid_1 -> "init-host-chroot-pid1.sh"
                 containerMode == ContainerMode.CHROOT && Settings.use_unshare && Settings.share_namespace -> "init-host-chroot-shared.sh"
                 else -> "init-host-chroot.sh" // Default: chroot with unshare, isolated namespaces
             }
@@ -55,7 +56,7 @@ object MkSession {
             val modeFile: File = localBinDir().child(".container-mode")
             
             // Create a unique mode identifier that includes all relevant settings
-            val modeIdentifier = "$containerMode:${Settings.use_unshare}:${Settings.share_namespace}"
+            val modeIdentifier = "$containerMode:${Settings.use_unshare}:${Settings.share_namespace}:${Settings.ensure_pid_1}"
 
             // Check if we need to update the init script
             val shouldUpdate = !initFile.exists() || 

@@ -66,7 +66,7 @@ fi
 
 if [ "$NS_EXISTS" = "1" ]; then
     # Namespace exists, enter it using nsenter
-    exec su -c "nsenter -t $NS_PID -m -p -u -i chroot \"$ALPINE_DIR\" /bin/sh \"$PREFIX/local/bin/init\" \"\$@\""
+    su -c "nsenter -t $NS_PID -m -p -u -i chroot \"$ALPINE_DIR\" /bin/sh \"$PREFIX/local/bin/init\" \"\$@\""
 else
     # Create new namespace and keep it alive
     # Start a background process to maintain the namespace
@@ -126,30 +126,22 @@ else
                 mount --bind /proc/self/fd/2 \"$ALPINE_DIR/dev/stderr\" 2>/dev/null || true
             fi
             
-            # Start a background sleep to keep namespace alive
+            # Keep namespace alive with background keeper
             ( while true; do sleep $KEEPER_SLEEP_INTERVAL; done ) &
-            KEEPER_PID=\$!
             
-            # Run the actual session
-            chroot \"$ALPINE_DIR\" /bin/sh \"$PREFIX/local/bin/init\" \"\$@\"
-            
-            # Clean up: kill keeper and remove PID file
-            kill \$KEEPER_PID 2>/dev/null || true
-            rm -f \"$NAMESPACE_PID_FILE\"
+            # Wait indefinitely - namespace will be cleaned up when all sessions exit
+            wait
         '
     " &
     
-    # Wait a moment for namespace to be created
+    # Wait for namespace to be created
     sleep $NAMESPACE_CREATION_WAIT
     
-    # Try to enter the newly created namespace
+    # Enter the newly created namespace
     if [ -f "$NAMESPACE_PID_FILE" ]; then
         NS_PID=$(cat "$NAMESPACE_PID_FILE" 2>/dev/null)
         if [ -n "$NS_PID" ] && su -c "kill -0 $NS_PID 2>/dev/null"; then
-            exec su -c "nsenter -t $NS_PID -m -p -u -i chroot \"$ALPINE_DIR\" /bin/sh \"$PREFIX/local/bin/init\" \"\$@\""
+            su -c "nsenter -t $NS_PID -m -p -u -i chroot \"$ALPINE_DIR\" /bin/sh \"$PREFIX/local/bin/init\" \"\$@\""
         fi
     fi
-    
-    # Fallback: wait for background process
-    wait
 fi
