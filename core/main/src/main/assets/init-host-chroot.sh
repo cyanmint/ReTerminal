@@ -46,19 +46,22 @@ for system_mnt in /apex /odm /product /system /system_ext /vendor; do
     fi
 done
 
-# Use su to run commands with root privileges
-# Create new namespaces for isolation:
+# Determine if we should use su based on USE_SU environment variable
+USE_SU_CMD=""
+if [ "$USE_SU" != "0" ]; then
+    USE_SU_CMD="su -c"
+fi
+
+# Create new namespaces with init as PID 1 (automatic with --mount-proc):
 #   -m: mount namespace (isolated filesystem mounts)
-#   -p: PID namespace (isolated process tree)
+#   -p: PID namespace (isolated process tree, init will be PID 1)
 #   -u: UTS namespace (isolated hostname)
 #   -i: IPC namespace (isolated inter-process communication)
 #   -f: fork before executing command (required for PID namespace)
-su -c "
-    # Create new namespaces and set up container
-    unshare -m -p -u -i -f sh -c '
-        # Mount proc for the new PID namespace
-        mount -t proc proc \"$ALPINE_DIR/proc\" 2>/dev/null || true
-        
+#   --mount-proc: mount proc in the new PID namespace (init becomes PID 1)
+$USE_SU_CMD "
+    # Create new namespaces with proper PID namespace
+    unshare -m -p -u -i -f --mount-proc=\"$ALPINE_DIR/proc\" sh -c '
         # Bind mount necessary directories
         mount --bind /sdcard \"$ALPINE_DIR/sdcard\" 2>/dev/null || true
         mount --bind /storage \"$ALPINE_DIR/storage\" 2>/dev/null || true

@@ -46,9 +46,15 @@ for system_mnt in /apex /odm /product /system /system_ext /vendor; do
     fi
 done
 
-# Use su to run chroot without creating new namespaces
+# Determine if we should use su based on USE_SU environment variable
+USE_SU_CMD=""
+if [ "$USE_SU" != "0" ]; then
+    USE_SU_CMD="su -c"
+fi
+
+# Use chroot without creating new namespaces
 # This provides basic chroot isolation without namespace separation
-su -c "
+$USE_SU_CMD "
     # Mount proc
     mount -t proc proc \"$ALPINE_DIR/proc\" 2>/dev/null || true
     

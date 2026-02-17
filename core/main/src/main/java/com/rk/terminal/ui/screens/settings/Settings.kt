@@ -195,20 +195,11 @@ fun Settings(modifier: Modifier = Modifier,navController: NavController,mainActi
                 if (Settings.use_unshare) {
                     SettingsToggle(
                         label = "Share namespace",
-                        description = "All sessions share the same namespace (can combine with PID 1)",
+                        description = "First session creates namespace, others join it (init always PID 1)",
                         showSwitch = true,
                         default = Settings.share_namespace,
                         sideEffect = {
                             Settings.share_namespace = it
-                        })
-                    
-                    SettingsToggle(
-                        label = "Ensure PID 1",
-                        description = "First session init becomes PID 1 (can combine with shared namespace)",
-                        showSwitch = true,
-                        default = Settings.ensure_pid_1,
-                        sideEffect = {
-                            Settings.ensure_pid_1 = it
                         })
                 }
             }

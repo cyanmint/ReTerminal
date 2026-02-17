@@ -2,7 +2,6 @@
 
 ALPINE_DIR=$PREFIX/local/alpine
 NAMESPACE_PID_FILE=$PREFIX/local/.alpine-ns-pid
-KEEPER_SLEEP_INTERVAL=3600  # How long keeper sleeps between checks (1 hour)
 NAMESPACE_CREATION_WAIT=0.5 # How long to wait for namespace creation (seconds)
 
 mkdir -p $ALPINE_DIR
@@ -49,13 +48,19 @@ for system_mnt in /apex /odm /product /system /system_ext /vendor; do
     fi
 done
 
+# Determine if we should use su based on USE_SU environment variable
+USE_SU_CMD=""
+if [ "$USE_SU" != "0" ]; then
+    USE_SU_CMD="su -c"
+fi
+
 # Check if namespace already exists and is valid
 NS_EXISTS=0
 if [ -f "$NAMESPACE_PID_FILE" ]; then
     NS_PID=$(cat "$NAMESPACE_PID_FILE" 2>/dev/null)
     if [ -n "$NS_PID" ]; then
         # Check if the process still exists
-        if su -c "kill -0 $NS_PID 2>/dev/null"; then
+        if $USE_SU_CMD "kill -0 $NS_PID 2>/dev/null"; then
             NS_EXISTS=1
         else
             # Process is dead, remove stale PID file
@@ -65,18 +70,18 @@ if [ -f "$NAMESPACE_PID_FILE" ]; then
 fi
 
 if [ "$NS_EXISTS" = "1" ]; then
-    # Namespace exists, enter it using nsenter
-    su -c "nsenter -t $NS_PID -m -p -u -i chroot \"$ALPINE_DIR\" /bin/sh \"$PREFIX/local/bin/init\" \"\$@\""
+    # Namespace exists, enter it using nsenter (subsequent sessions)
+    # Pass NSENTER_MODE=1 to signal that we're joining an existing namespace
+    $USE_SU_CMD "NSENTER_MODE=1 nsenter -t $NS_PID -m -p -u -i chroot \"$ALPINE_DIR\" /bin/sh \"$PREFIX/local/bin/init\" \"\$@\""
 else
-    # Create new namespace and keep it alive
-    # Start a background process to maintain the namespace
-    su -c "
-        unshare -m -p -u -i -f sh -c '
+    # Create new namespace with init as PID 1 (first session)
+    # --mount-proc ensures init becomes PID 1 automatically
+    $USE_SU_CMD "
+        unshare -m -p -u -i -f --mount-proc=\"$ALPINE_DIR/proc\" sh -c '
             # Save PID to file for future sessions
             echo \$\$ > \"$NAMESPACE_PID_FILE\"
             
             # Set up all mounts inline
-            mount -t proc proc \"$ALPINE_DIR/proc\" 2>/dev/null || true
             mount --bind /sdcard \"$ALPINE_DIR/sdcard\" 2>/dev/null || true
             mount --bind /storage \"$ALPINE_DIR/storage\" 2>/dev/null || true
             mount --bind /dev \"$ALPINE_DIR/dev\" 2>/dev/null || true
@@ -126,22 +131,21 @@ else
                 mount --bind /proc/self/fd/2 \"$ALPINE_DIR/dev/stderr\" 2>/dev/null || true
             fi
             
-            # Keep namespace alive with background keeper
-            ( while true; do sleep $KEEPER_SLEEP_INTERVAL; done ) &
-            
-            # Wait indefinitely - namespace will be cleaned up when all sessions exit
-            wait
+            # Execute init as PID 1 in the namespace
+            # With --mount-proc, this automatically becomes PID 1
+            exec chroot \"$ALPINE_DIR\" /bin/sh \"$PREFIX/local/bin/init\" \"\$@\"
         '
     " &
     
     # Wait for namespace to be created
     sleep $NAMESPACE_CREATION_WAIT
     
-    # Enter the newly created namespace
+    # First session: Enter the newly created namespace
+    # Pass NSENTER_MODE=1 since we're entering via nsenter
     if [ -f "$NAMESPACE_PID_FILE" ]; then
         NS_PID=$(cat "$NAMESPACE_PID_FILE" 2>/dev/null)
-        if [ -n "$NS_PID" ] && su -c "kill -0 $NS_PID 2>/dev/null"; then
-            su -c "nsenter -t $NS_PID -m -p -u -i chroot \"$ALPINE_DIR\" /bin/sh \"$PREFIX/local/bin/init\" \"\$@\""
+        if [ -n "$NS_PID" ] && $USE_SU_CMD "kill -0 $NS_PID 2>/dev/null"; then
+            $USE_SU_CMD "NSENTER_MODE=1 nsenter -t $NS_PID -m -p -u -i chroot \"$ALPINE_DIR\" /bin/sh \"$PREFIX/local/bin/init\" \"\$@\""
         fi
     fi
 fi

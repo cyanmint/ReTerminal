@@ -63,10 +63,6 @@ object Settings {
         get() = Preference.getBoolean(key = "share_namespace", default = false)
         set(value) = Preference.setBoolean(key = "share_namespace",value)
 
-    var ensure_pid_1
-        get() = Preference.getBoolean(key = "ensure_pid_1", default = false)
-        set(value) = Preference.setBoolean(key = "ensure_pid_1",value)
-
     var custom_background_name
         get() = Preference.getString(key = "custom_bg_name", default = "No Image Selected")
         set(value) = Preference.setString(key = "custom_bg_name",value)

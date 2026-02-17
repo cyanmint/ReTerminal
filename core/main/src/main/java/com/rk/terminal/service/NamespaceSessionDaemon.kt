@@ -36,9 +36,8 @@ object NamespaceSessionDaemon {
     // Mutex for thread-safe operations
     private val mutex = Mutex()
     
-    // Namespace types
+    // Namespace types - simplified since PID 1 is always automatic when unsharing
     private const val NS_TYPE_SHARED = "shared"
-    private const val NS_TYPE_SHARED_PID1 = "shared-pid1"
     
     /**
      * Check if shared namespace mode is enabled
@@ -50,29 +49,11 @@ object NamespaceSessionDaemon {
     }
     
     /**
-     * Check if PID 1 mode is enabled
-     */
-    private fun isPid1Mode(): Boolean {
-        return Settings.ensure_pid_1
-    }
-    
-    /**
-     * Get the namespace type based on current settings
-     */
-    private fun getNamespaceType(): String {
-        return if (isPid1Mode()) NS_TYPE_SHARED_PID1 else NS_TYPE_SHARED
-    }
-    
-    /**
-     * Get the PID file for the namespace type
+     * Get the PID file for shared namespace
      */
     fun getNamespacePidFile(prefix: String): File {
-        val nsType = getNamespaceType()
-        val fileName = when (nsType) {
-            NS_TYPE_SHARED_PID1 -> ".alpine-ns-pid1"
-            else -> ".alpine-ns-pid"
-        }
-        return File(prefix).child("local").child(fileName)
+        // Always use same PID file since PID 1 is automatic
+        return File(prefix).child("local").child(".alpine-ns-pid")
     }
     
     /**
@@ -84,7 +65,7 @@ object NamespaceSessionDaemon {
             return null
         }
         
-        val nsType = getNamespaceType()
+        val nsType = NS_TYPE_SHARED
         val pidFile = getNamespacePidFile(prefix)
         
         // Check if namespace already exists
@@ -98,7 +79,7 @@ object NamespaceSessionDaemon {
                     if (isProcessAlive(pid)) {
                         nsInfo = NamespaceInfo(pid, pidFile, 0)
                         namespaces[nsType] = nsInfo
-                        Log.d(TAG, "Found existing namespace: type=$nsType, PID=$pid")
+                        Log.d(TAG, "Found existing namespace: PID=$pid")
                     } else {
                         // Stale PID file, remove it
                         pidFile.delete()
@@ -114,9 +95,9 @@ object NamespaceSessionDaemon {
         // Increment session count
         nsInfo?.let {
             it.sessionCount++
-            Log.d(TAG, "Session registered: type=$nsType, PID=${it.pid}, count=${it.sessionCount}")
+            Log.d(TAG, "Session registered: PID=${it.pid}, count=${it.sessionCount}")
         } ?: run {
-            Log.d(TAG, "New namespace will be created: type=$nsType")
+            Log.d(TAG, "New namespace will be created")
         }
         
         return nsInfo
@@ -128,13 +109,13 @@ object NamespaceSessionDaemon {
     suspend fun notifyNamespaceCreated(prefix: String, pid: Int) = mutex.withLock {
         if (!isSharedNamespaceMode()) return
         
-        val nsType = getNamespaceType()
+        val nsType = NS_TYPE_SHARED
         val pidFile = getNamespacePidFile(prefix)
         
         val nsInfo = NamespaceInfo(pid, pidFile, 1)
         namespaces[nsType] = nsInfo
         
-        Log.d(TAG, "Namespace created: type=$nsType, PID=$pid")
+        Log.d(TAG, "Namespace created: PID=$pid")
     }
     
     /**
@@ -145,11 +126,11 @@ object NamespaceSessionDaemon {
             return
         }
         
-        val nsType = getNamespaceType()
+        val nsType = NS_TYPE_SHARED
         val nsInfo = namespaces[nsType] ?: return
         
         nsInfo.sessionCount--
-        Log.d(TAG, "Session unregistered: type=$nsType, PID=${nsInfo.pid}, count=${nsInfo.sessionCount}")
+        Log.d(TAG, "Session unregistered: PID=${nsInfo.pid}, count=${nsInfo.sessionCount}")
         
         // If no more sessions, clean up namespace
         if (nsInfo.sessionCount <= 0) {
@@ -167,7 +148,7 @@ object NamespaceSessionDaemon {
             
             // Just clean up our tracking
             namespaces.remove(nsType)
-            Log.d(TAG, "Namespace cleaned up: type=$nsType, PID=${nsInfo.pid}")
+            Log.d(TAG, "Namespace cleaned up: PID=${nsInfo.pid}")
         } catch (e: Exception) {
             Log.e(TAG, "Error cleaning up namespace: ${e.message}")
         }
@@ -192,8 +173,7 @@ object NamespaceSessionDaemon {
     suspend fun getNamespaceInfo(prefix: String): NamespaceInfo? = mutex.withLock {
         if (!isSharedNamespaceMode()) return null
         
-        val nsType = getNamespaceType()
-        return namespaces[nsType]
+        return namespaces[NS_TYPE_SHARED]
     }
     
     /**
@@ -206,7 +186,7 @@ object NamespaceSessionDaemon {
             if (!isProcessAlive(info.pid)) {
                 toRemove.add(type)
                 info.pidFile.delete()
-                Log.d(TAG, "Removed stale namespace: type=$type, PID=${info.pid}")
+                Log.d(TAG, "Removed stale namespace: PID=${info.pid}")
             }
         }
         
