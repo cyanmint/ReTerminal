@@ -62,7 +62,7 @@ object NamespaceSessionDaemon {
     suspend fun registerSession(prefix: String): NamespaceInfo? = mutex.withLock {
         if (!isSharedNamespaceMode()) {
             Log.d(TAG, "Not in shared namespace mode, skipping registration")
-            return null
+            return@withLock null
         }
         
         val nsType = NS_TYPE_SHARED
@@ -100,14 +100,14 @@ object NamespaceSessionDaemon {
             Log.d(TAG, "New namespace will be created")
         }
         
-        return nsInfo
+        return@withLock nsInfo
     }
     
     /**
      * Notify daemon that namespace was created by shell script
      */
     suspend fun notifyNamespaceCreated(prefix: String, pid: Int) = mutex.withLock {
-        if (!isSharedNamespaceMode()) return
+        if (!isSharedNamespaceMode()) return@withLock
         
         val nsType = NS_TYPE_SHARED
         val pidFile = getNamespacePidFile(prefix)
@@ -123,11 +123,11 @@ object NamespaceSessionDaemon {
      */
     suspend fun unregisterSession(prefix: String) = mutex.withLock {
         if (!isSharedNamespaceMode()) {
-            return
+            return@withLock
         }
         
         val nsType = NS_TYPE_SHARED
-        val nsInfo = namespaces[nsType] ?: return
+        val nsInfo = namespaces[nsType] ?: return@withLock
         
         nsInfo.sessionCount--
         Log.d(TAG, "Session unregistered: PID=${nsInfo.pid}, count=${nsInfo.sessionCount}")
@@ -171,9 +171,9 @@ object NamespaceSessionDaemon {
      * Get current namespace info
      */
     suspend fun getNamespaceInfo(prefix: String): NamespaceInfo? = mutex.withLock {
-        if (!isSharedNamespaceMode()) return null
+        if (!isSharedNamespaceMode()) return@withLock null
         
-        return namespaces[NS_TYPE_SHARED]
+        return@withLock namespaces[NS_TYPE_SHARED]
     }
     
     /**
