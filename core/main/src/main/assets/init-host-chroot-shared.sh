@@ -75,9 +75,11 @@ if [ "$NS_EXISTS" = "1" ]; then
     $USE_SU_CMD "NSENTER_MODE=1 nsenter -t $NS_PID -m -p -u -i chroot \"$ALPINE_DIR\" /bin/sh \"$PREFIX/local/bin/init\" \"\$@\""
 else
     # Create new namespace with init as PID 1 (first session)
-    # --mount-proc ensures init becomes PID 1 automatically
     $USE_SU_CMD "
-        unshare -m -p -u -i -f --mount-proc=\"$ALPINE_DIR/proc\" sh -c '
+        unshare -m -p -u -i -f sh -c '
+            # Mount proc filesystem (required for PID namespace, init becomes PID 1)
+            mount -t proc proc \"$ALPINE_DIR/proc\" 2>/dev/null || true
+            
             # Save PID to file for future sessions
             echo \$\$ > \"$NAMESPACE_PID_FILE\"
             
@@ -132,7 +134,7 @@ else
             fi
             
             # Execute init as PID 1 in the namespace
-            # With --mount-proc, this automatically becomes PID 1
+            # With -p -f flags and proc mounted, init becomes PID 1
             exec chroot \"$ALPINE_DIR\" /bin/sh \"$PREFIX/local/bin/init\" \"\$@\"
         '
     " &
