@@ -16,6 +16,7 @@ import com.rk.terminal.App.Companion.getTempDir
 import com.rk.terminal.BuildConfig
 import com.rk.terminal.ui.activities.terminal.MainActivity
 import com.rk.terminal.ui.screens.settings.WorkingMode
+import com.rk.terminal.ui.screens.settings.ContainerMode
 import com.termux.terminal.TerminalEmulator
 import com.termux.terminal.TerminalSession
 import com.termux.terminal.TerminalSessionClient
@@ -41,11 +42,21 @@ object MkSession {
 
             val workingDir = pendingCommand?.workingDir ?: alpineHomeDir().path
 
+            // Determine which init script to use based on container mode
+            val containerMode = Settings.container_Mode
+            val initScriptName = if (containerMode == ContainerMode.CHROOT) "init-host-chroot.sh" else "init-host.sh"
             val initFile: File = localBinDir().child("init-host")
 
             if (initFile.exists().not()){
                 initFile.createFileIfNot()
-                initFile.writeText(assets.open("init-host.sh").bufferedReader().use { it.readText() })
+                initFile.writeText(assets.open(initScriptName).bufferedReader().use { it.readText() })
+            } else {
+                // Update the init file if the container mode changed
+                val currentContent = initFile.readText()
+                val newContent = assets.open(initScriptName).bufferedReader().use { it.readText() }
+                if (currentContent != newContent) {
+                    initFile.writeText(newContent)
+                }
             }
 
 

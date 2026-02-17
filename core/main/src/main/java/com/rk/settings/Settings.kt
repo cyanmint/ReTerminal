@@ -7,6 +7,7 @@ import android.os.Build
 import androidx.appcompat.app.AppCompatDelegate
 import com.rk.libcommons.application
 import com.rk.terminal.ui.screens.settings.WorkingMode
+import com.rk.terminal.ui.screens.settings.ContainerMode
 
 object Settings {
     //Boolean
@@ -45,6 +46,10 @@ object Settings {
     var working_Mode
         get() = Preference.getInt(key = "workingMode", default = WorkingMode.ALPINE)
         set(value) = Preference.setInt(key = "workingMode",value)
+
+    var container_Mode
+        get() = Preference.getInt(key = "containerMode", default = ContainerMode.PROOT)
+        set(value) = Preference.setInt(key = "containerMode",value)
 
     var custom_background_name
         get() = Preference.getString(key = "custom_bg_name", default = "No Image Selected")

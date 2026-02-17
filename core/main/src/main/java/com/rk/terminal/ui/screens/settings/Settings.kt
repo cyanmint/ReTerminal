@@ -72,12 +72,18 @@ object WorkingMode{
     const val ANDROID = 1
 }
 
+object ContainerMode{
+    const val PROOT = 0
+    const val CHROOT = 1
+}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Settings(modifier: Modifier = Modifier,navController: NavController,mainActivity: MainActivity) {
     val context = LocalContext.current
     var selectedOption by remember { mutableIntStateOf(Settings.working_Mode) }
+    var selectedContainerMode by remember { mutableIntStateOf(Settings.container_Mode) }
 
     PreferenceLayout(label = stringResource(strings.settings)) {
         PreferenceGroup(heading = "Default Working mode") {
@@ -117,6 +123,43 @@ fun Settings(modifier: Modifier = Modifier,navController: NavController,mainActi
                 onClick = {
                     selectedOption = WorkingMode.ANDROID
                     Settings.working_Mode = selectedOption
+                })
+        }
+
+        PreferenceGroup(heading = "Alpine Container mode") {
+
+            SettingsCard(
+                title = { Text("PRoot") },
+                description = {Text("Use proot (rootless)")},
+                startWidget = {
+                    RadioButton(
+                        modifier = Modifier.padding(start = 8.dp),
+                        selected = selectedContainerMode == ContainerMode.PROOT,
+                        onClick = {
+                            selectedContainerMode = ContainerMode.PROOT
+                            Settings.container_Mode = selectedContainerMode
+                        })
+                },
+                onClick = {
+                    selectedContainerMode = ContainerMode.PROOT
+                    Settings.container_Mode = selectedContainerMode
+                })
+
+            SettingsCard(
+                title = { Text("Chroot") },
+                description = {Text("Use chroot & unshare (requires root)")},
+                startWidget = {
+                    RadioButton(
+                        modifier = Modifier.padding(start = 8.dp),
+                        selected = selectedContainerMode == ContainerMode.CHROOT,
+                        onClick = {
+                            selectedContainerMode = ContainerMode.CHROOT
+                            Settings.container_Mode = selectedContainerMode
+                        })
+                },
+                onClick = {
+                    selectedContainerMode = ContainerMode.CHROOT
+                    Settings.container_Mode = selectedContainerMode
                 })
         }
 
