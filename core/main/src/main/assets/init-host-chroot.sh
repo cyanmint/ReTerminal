@@ -1,3 +1,5 @@
+#!/system/bin/sh
+
 ALPINE_DIR=$PREFIX/local/alpine
 
 mkdir -p $ALPINE_DIR
@@ -19,78 +21,98 @@ mkdir -p "$ALPINE_DIR/proc"
 mkdir -p "$ALPINE_DIR/sys"
 mkdir -p "$ALPINE_DIR$PREFIX"
 
+# Create linkerconfig directories if needed
+if [ -e /linkerconfig/ld.config.txt ]; then
+    mkdir -p "$ALPINE_DIR/linkerconfig"
+fi
+
+if [ -e /linkerconfig/com.android.art/ld.config.txt ]; then
+    mkdir -p "$ALPINE_DIR/linkerconfig/com.android.art"
+fi
+
+# Create property context files if needed
+if [ -e /plat_property_contexts ]; then
+    touch "$ALPINE_DIR/plat_property_contexts" 2>/dev/null || true
+fi
+
+if [ -e /property_contexts ]; then
+    touch "$ALPINE_DIR/property_contexts" 2>/dev/null || true
+fi
+
+# Create system mount points
+for system_mnt in /apex /odm /product /system /system_ext /vendor; do
+    if [ -e "$system_mnt" ]; then
+        mkdir -p "$ALPINE_DIR$system_mnt"
+    fi
+done
+
 # Use su to run commands with root privileges
 # unshare creates new namespaces (mount, PID, UTS, IPC)
 # chroot changes the root directory
 su -c "
-    # Create new namespaces: mount, PID, UTS, IPC
+    # Create new namespaces and set up container
     unshare -m -p -u -i -f sh -c '
         # Mount proc for the new PID namespace
-        mount -t proc proc $ALPINE_DIR/proc
+        mount -t proc proc \"$ALPINE_DIR/proc\" 2>/dev/null || true
         
         # Bind mount necessary directories
-        mount --bind /sdcard $ALPINE_DIR/sdcard
-        mount --bind /storage $ALPINE_DIR/storage
-        mount --bind /dev $ALPINE_DIR/dev
-        mount --bind /sys $ALPINE_DIR/sys
-        mount --bind $PREFIX $ALPINE_DIR$PREFIX
-        mount --bind $PREFIX/local/stat $ALPINE_DIR/proc/stat
-        mount --bind $PREFIX/local/vmstat $ALPINE_DIR/proc/vmstat
+        mount --bind /sdcard \"$ALPINE_DIR/sdcard\" 2>/dev/null || true
+        mount --bind /storage \"$ALPINE_DIR/storage\" 2>/dev/null || true
+        mount --bind /dev \"$ALPINE_DIR/dev\" 2>/dev/null || true
+        mount --bind /sys \"$ALPINE_DIR/sys\" 2>/dev/null || true
+        mount --bind \"$PREFIX\" \"$ALPINE_DIR$PREFIX\" 2>/dev/null || true
+        mount --bind \"$PREFIX/local/stat\" \"$ALPINE_DIR/proc/stat\" 2>/dev/null || true
+        mount --bind \"$PREFIX/local/vmstat\" \"$ALPINE_DIR/proc/vmstat\" 2>/dev/null || true
         
         # Bind mount /dev/shm
-        mount --bind $PREFIX/local/alpine/tmp $ALPINE_DIR/dev/shm
+        mount --bind \"$PREFIX/local/alpine/tmp\" \"$ALPINE_DIR/dev/shm\" 2>/dev/null || true
         
         # Bind mount system directories
         for system_mnt in /apex /odm /product /system /system_ext /vendor; do
             if [ -e \"\$system_mnt\" ]; then
-                mkdir -p \"$ALPINE_DIR\$system_mnt\"
-                mount --bind \"\$system_mnt\" \"$ALPINE_DIR\$system_mnt\"
+                mount --bind \"\$system_mnt\" \"$ALPINE_DIR\$system_mnt\" 2>/dev/null || true
             fi
         done
         
-        # Create linkerconfig directories if needed
+        # Bind mount linkerconfig if present
         if [ -e /linkerconfig/ld.config.txt ]; then
-            mkdir -p $ALPINE_DIR/linkerconfig
-            mount --bind /linkerconfig/ld.config.txt $ALPINE_DIR/linkerconfig/ld.config.txt
+            mount --bind /linkerconfig/ld.config.txt \"$ALPINE_DIR/linkerconfig/ld.config.txt\" 2>/dev/null || true
         fi
         
         if [ -e /linkerconfig/com.android.art/ld.config.txt ]; then
-            mkdir -p $ALPINE_DIR/linkerconfig/com.android.art
-            mount --bind /linkerconfig/com.android.art/ld.config.txt $ALPINE_DIR/linkerconfig/com.android.art/ld.config.txt
+            mount --bind /linkerconfig/com.android.art/ld.config.txt \"$ALPINE_DIR/linkerconfig/com.android.art/ld.config.txt\" 2>/dev/null || true
         fi
         
         # Bind mount property contexts
         if [ -e /plat_property_contexts ]; then
-            touch $ALPINE_DIR/plat_property_contexts
-            mount --bind /plat_property_contexts $ALPINE_DIR/plat_property_contexts
+            mount --bind /plat_property_contexts \"$ALPINE_DIR/plat_property_contexts\" 2>/dev/null || true
         fi
         
         if [ -e /property_contexts ]; then
-            touch $ALPINE_DIR/property_contexts
-            mount --bind /property_contexts $ALPINE_DIR/property_contexts
+            mount --bind /property_contexts \"$ALPINE_DIR/property_contexts\" 2>/dev/null || true
         fi
         
         # Bind mount /dev/random
-        mount --bind /dev/urandom $ALPINE_DIR/dev/random
+        mount --bind /dev/urandom \"$ALPINE_DIR/dev/random\" 2>/dev/null || true
         
         # Set up /dev/fd, stdin, stdout, stderr
         if [ -e /proc/self/fd ]; then
-            mount --bind /proc/self/fd $ALPINE_DIR/dev/fd
+            mount --bind /proc/self/fd \"$ALPINE_DIR/dev/fd\" 2>/dev/null || true
         fi
         
         if [ -e /proc/self/fd/0 ]; then
-            mount --bind /proc/self/fd/0 $ALPINE_DIR/dev/stdin
+            mount --bind /proc/self/fd/0 \"$ALPINE_DIR/dev/stdin\" 2>/dev/null || true
         fi
         
         if [ -e /proc/self/fd/1 ]; then
-            mount --bind /proc/self/fd/1 $ALPINE_DIR/dev/stdout
+            mount --bind /proc/self/fd/1 \"$ALPINE_DIR/dev/stdout\" 2>/dev/null || true
         fi
         
         if [ -e /proc/self/fd/2 ]; then
-            mount --bind /proc/self/fd/2 $ALPINE_DIR/dev/stderr
+            mount --bind /proc/self/fd/2 \"$ALPINE_DIR/dev/stderr\" 2>/dev/null || true
         fi
         
         # Change root and execute init script
-        chroot $ALPINE_DIR /bin/sh $PREFIX/local/bin/init \"\$@\"
+        exec chroot \"$ALPINE_DIR\" /bin/sh \"$PREFIX/local/bin/init\" \"\$@\"
     '
 "
