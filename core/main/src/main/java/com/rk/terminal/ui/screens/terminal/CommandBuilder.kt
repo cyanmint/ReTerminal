@@ -147,9 +147,9 @@ wait
         val scriptPath = scriptFile.absolutePath
         
         return if (useSu) {
-            arrayOf("su", "-c", "unshare -a -f $scriptPath")
+            arrayOf("su", "-c", "unshare -a -f /system/bin/sh $scriptPath")
         } else {
-            arrayOf("unshare", "-a", "-f", scriptPath)
+            arrayOf("unshare", "-a", "-f", "/system/bin/sh", scriptPath)
         }
     }
     
@@ -180,9 +180,9 @@ wait
             val scriptPath = scriptFile.absolutePath
             
             if (useSu) {
-                arrayOf("su", "-c", "unshare -a -f $scriptPath")
+                arrayOf("su", "-c", "unshare -a -f /system/bin/sh $scriptPath")
             } else {
-                arrayOf("unshare", "-a", "-f", scriptPath)
+                arrayOf("unshare", "-a", "-f", "/system/bin/sh", scriptPath)
             }
         } else {
             // Subsequent sessions: join existing namespace and use /bin/sh
