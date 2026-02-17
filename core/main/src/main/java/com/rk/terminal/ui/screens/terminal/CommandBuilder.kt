@@ -211,10 +211,19 @@ wait
             NamespaceSessionDaemon.registerSession(prefix)
         }
         
-        // Treat as first session if: 
-        // 1. NamespaceSessionDaemon says it's the first session, OR
-        // 2. PID file doesn't exist (edge case: daemon says session exists but file is missing)
-        val isFirstSession = nsInfo?.sessionCount == 1 || !namespacePidFile.exists()
+        // Determine if this is the first session
+        // Try to read PID file to verify namespace actually exists
+        val isFirstSession = if (nsInfo?.sessionCount == 1) {
+            true  // Daemon says first session
+        } else {
+            // Daemon says session exists, but verify PID file is readable
+            try {
+                val pidExists = namespacePidFile.exists() && namespacePidFile.canRead()
+                !pidExists  // If file doesn't exist or can't be read, treat as first session
+            } catch (e: Exception) {
+                true  // On any error checking file, treat as first session
+            }
+        }
         
         return if (isFirstSession) {
             // First session: create namespace with /sbin/init as PID 1
@@ -229,16 +238,28 @@ wait
             }
         } else {
             // Subsequent sessions: join existing namespace
-            val nsPid = namespacePidFile.readText().trim()
-            
-            // Create wrapper script for nsenter
-            val scriptFile = createNsenterScript(alpineDir, nsPid)
-            val scriptPath = scriptFile.absolutePath
-            
-            if (useSu) {
-                arrayOf("su", "-c", "/system/bin/sh $scriptPath")
-            } else {
-                arrayOf("/system/bin/sh", scriptPath)
+            try {
+                val nsPid = namespacePidFile.readText().trim()
+                
+                // Create wrapper script for nsenter
+                val scriptFile = createNsenterScript(alpineDir, nsPid)
+                val scriptPath = scriptFile.absolutePath
+                
+                if (useSu) {
+                    arrayOf("su", "-c", "/system/bin/sh $scriptPath")
+                } else {
+                    arrayOf("/system/bin/sh", scriptPath)
+                }
+            } catch (e: Exception) {
+                // If we can't read PID file, fall back to creating new namespace
+                val scriptFile = createSharedChrootScript(alpineDir, namespacePidFile)
+                val scriptPath = scriptFile.absolutePath
+                
+                if (useSu) {
+                    arrayOf("su", "-c", "unshare -a -f /system/bin/sh $scriptPath")
+                } else {
+                    arrayOf("unshare", "-a", "-f", "/system/bin/sh", scriptPath)
+                }
             }
         }
     }
