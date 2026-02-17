@@ -1,6 +1,7 @@
 package com.rk.terminal.ui.screens.terminal
 
 import com.rk.libcommons.alpineDir
+import com.rk.libcommons.localBinDir
 import com.rk.libcommons.localDir
 import com.rk.terminal.service.NamespaceSessionDaemon
 import com.rk.terminal.ui.screens.settings.ContainerMode
@@ -12,6 +13,67 @@ import java.io.File
  * Commands are executed separately instead of bundled into shell strings.
  */
 object CommandBuilder {
+    
+    /**
+     * Create wrapper script for isolated chroot setup
+     */
+    private fun createIsolatedChrootScript(alpineDir: File): File {
+        val scriptFile = File(localBinDir(), "chroot-isolated.sh")
+        val scriptContent = """#!/system/bin/sh
+# Script to setup and enter isolated chroot namespace
+
+ALPINE_DIR="${alpineDir.absolutePath}"
+
+# Mount proc filesystem
+mount -t proc proc "${'$'}ALPINE_DIR/proc" 2>/dev/null || true
+
+# Bind mount Android directories
+mount --bind /sdcard "${'$'}ALPINE_DIR/sdcard" 2>/dev/null || true
+mount --bind /storage "${'$'}ALPINE_DIR/storage" 2>/dev/null || true
+mount --bind /data/data "${'$'}ALPINE_DIR/data/data" 2>/dev/null || true
+mount --bind /system "${'$'}ALPINE_DIR/system" 2>/dev/null || true
+mount --bind /vendor "${'$'}ALPINE_DIR/vendor" 2>/dev/null || true
+
+# Execute chroot with init as PID 1
+exec chroot "${'$'}ALPINE_DIR" /sbin/init
+"""
+        scriptFile.writeText(scriptContent)
+        scriptFile.setExecutable(true)
+        return scriptFile
+    }
+    
+    /**
+     * Create wrapper script for shared chroot setup
+     */
+    private fun createSharedChrootScript(alpineDir: File, pidFile: File): File {
+        val scriptFile = File(localBinDir(), "chroot-shared.sh")
+        val scriptContent = """#!/system/bin/sh
+# Script to setup and enter shared chroot namespace
+
+ALPINE_DIR="${alpineDir.absolutePath}"
+PID_FILE="${pidFile.absolutePath}"
+
+# Save the PID for future sessions to join this namespace
+echo ${'$'}${'$'} > "${'$'}PID_FILE"
+
+# Mount proc filesystem
+mount -t proc proc "${'$'}ALPINE_DIR/proc" 2>/dev/null || true
+
+# Bind mount Android directories
+mount --bind /sdcard "${'$'}ALPINE_DIR/sdcard" 2>/dev/null || true
+mount --bind /storage "${'$'}ALPINE_DIR/storage" 2>/dev/null || true
+mount --bind /data/data "${'$'}ALPINE_DIR/data/data" 2>/dev/null || true
+mount --bind /system "${'$'}ALPINE_DIR/system" 2>/dev/null || true
+mount --bind /vendor "${'$'}ALPINE_DIR/vendor" 2>/dev/null || true
+
+# Launch init in background and wait
+(chroot "${'$'}ALPINE_DIR" /sbin/init &)
+wait
+"""
+        scriptFile.writeText(scriptContent)
+        scriptFile.setExecutable(true)
+        return scriptFile
+    }
     
     /**
      * Build command array for PRoot mode
@@ -68,29 +130,20 @@ object CommandBuilder {
     /**
      * Build command array for chroot with isolated namespace
      * When unsharing, use /sbin/init to make it PID 1 (default behavior)
-     * Mounts are executed inside the namespace
+     * Mounts are executed inside the namespace via a wrapper script
      */
     fun buildChrootIsolatedCommand(
         alpineDir: File,
         useSu: Boolean
     ): Array<String> {
-        val chrootPath = alpineDir.absolutePath
-        
-        // Mount proc and bind mounts inside the namespace, then exec chroot with /sbin/init
-        val setupAndChroot = """
-            mount -t proc proc $chrootPath/proc 2>/dev/null || true &&
-            mount --bind /sdcard $chrootPath/sdcard 2>/dev/null || true &&
-            mount --bind /storage $chrootPath/storage 2>/dev/null || true &&
-            mount --bind /data/data $chrootPath/data/data 2>/dev/null || true &&
-            mount --bind /system $chrootPath/system 2>/dev/null || true &&
-            mount --bind /vendor $chrootPath/vendor 2>/dev/null || true &&
-            exec chroot $chrootPath /sbin/init
-        """.trimIndent().replace("\n", " ")
+        // Create wrapper script that will execute inside the unshare namespace
+        val scriptFile = createIsolatedChrootScript(alpineDir)
+        val scriptPath = scriptFile.absolutePath
         
         return if (useSu) {
-            arrayOf("su", "-c", "unshare -a -f sh -c '$setupAndChroot'")
+            arrayOf("su", "-c", "unshare -a -f $scriptPath")
         } else {
-            arrayOf("unshare", "-a", "-f", "sh", "-c", setupAndChroot)
+            arrayOf("unshare", "-a", "-f", scriptPath)
         }
     }
     
@@ -116,22 +169,14 @@ object CommandBuilder {
         
         return if (isFirstSession) {
             // First session: create namespace with /sbin/init as PID 1
-            val pidFile = namespacePidFile.absolutePath
-            val setupAndChroot = """
-                echo $$ > $pidFile &&
-                mount -t proc proc $chrootPath/proc 2>/dev/null || true &&
-                mount --bind /sdcard $chrootPath/sdcard 2>/dev/null || true &&
-                mount --bind /storage $chrootPath/storage 2>/dev/null || true &&
-                mount --bind /data/data $chrootPath/data/data 2>/dev/null || true &&
-                mount --bind /system $chrootPath/system 2>/dev/null || true &&
-                mount --bind /vendor $chrootPath/vendor 2>/dev/null || true &&
-                (chroot $chrootPath /sbin/init &) && wait
-            """.trimIndent().replace("\n", " ")
+            // Create wrapper script that will execute inside the unshare namespace
+            val scriptFile = createSharedChrootScript(alpineDir, namespacePidFile)
+            val scriptPath = scriptFile.absolutePath
             
             if (useSu) {
-                arrayOf("su", "-c", "unshare -a -f sh -c '$setupAndChroot'")
+                arrayOf("su", "-c", "unshare -a -f $scriptPath")
             } else {
-                arrayOf("unshare", "-a", "-f", "sh", "-c", setupAndChroot)
+                arrayOf("unshare", "-a", "-f", scriptPath)
             }
         } else {
             // Subsequent sessions: join existing namespace and use /bin/sh
