@@ -53,14 +53,11 @@ if [ "$USE_SU" != "0" ]; then
 fi
 
 # Create new namespaces with init as PID 1:
-#   -m: mount namespace (isolated filesystem mounts)
-#   -p: PID namespace (isolated process tree, init will be PID 1)
-#   -u: UTS namespace (isolated hostname)
-#   -i: IPC namespace (isolated inter-process communication)
+#   -a: all supported namespaces (mount, PID, UTS, IPC, and more if available)
 #   -f: fork before executing command (required for PID namespace)
 $USE_SU_CMD "
     # Create new namespaces with proper PID namespace
-    unshare -m -p -u -i -f sh -c '
+    unshare -a -f sh -c '
         # Mount proc filesystem (required for PID namespace)
         mount -t proc proc \"$ALPINE_DIR/proc\" 2>/dev/null || true
         
