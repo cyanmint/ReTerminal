@@ -147,7 +147,15 @@ wait
     ): Array<String> {
         val prootPath = File(nativeLibDir, "libproot.so").absolutePath
         
+        // Determine which linker to use (64-bit or 32-bit)
+        val linker = if (File("/system/bin/linker64").exists()) {
+            "/system/bin/linker64"
+        } else {
+            "/system/bin/linker"
+        }
+        
         return arrayOf(
+            linker,
             prootPath,
             "-r", alpineDir.absolutePath,
             "-b", "/sdcard:/sdcard",
