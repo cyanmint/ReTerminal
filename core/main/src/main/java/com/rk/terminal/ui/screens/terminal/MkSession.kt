@@ -61,6 +61,7 @@ object MkSession {
             if (shouldUpdate) {
                 initFile.createFileIfNot()
                 initFile.writeText(assets.open(initScriptName).bufferedReader().use { it.readText() })
+                initFile.setExecutable(true, false)
             }
 
 
