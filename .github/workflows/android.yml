@@ -28,10 +28,18 @@ jobs:
           cache: gradle
 
       - name: Decode and create xed.keystore
+        if: ${{ secrets.KEYSTORE != '' }}
         run: echo "${{ secrets.KEYSTORE }}" | base64 -d > /tmp/xed.keystore
 
       - name: Decode and create signing.properties
+        if: ${{ secrets.PROP != '' }}
         run: echo "${{ secrets.PROP }}" | base64 -d > /tmp/signing.properties
+
+      - name: Create temporary keystore if secrets not available
+        if: ${{ secrets.KEYSTORE == '' || secrets.PROP == '' }}
+        run: |
+          echo "Secrets not available, creating temporary debug keystore"
+          # The testkey.keystore will be used as fallback in build.gradle.kts
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -54,7 +62,8 @@ jobs:
           path: app/reterminal-${{ env.COMMIT_HASH }}.apk
 
       - name: Delete xed.keystore and signing.properties
-        run: rm /tmp/xed.keystore /tmp/signing.properties
+        if: always()
+        run: rm -f /tmp/xed.keystore /tmp/signing.properties
 
       - name: Send APK to Telegram
         if: ${{ success() && github.event.head_commit.message != '' }}
