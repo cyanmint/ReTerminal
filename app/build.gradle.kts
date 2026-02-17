@@ -51,14 +51,14 @@ android {
                 println("Signing properties file not found at $propertiesFilePath")
                 println("Using debug signing configuration for release build")
                 // Fall back to debug signing if release signing is not available
-                storeFile = file(layout.buildDirectory.dir("../testkey.keystore"))
+                storeFile = file("testkey.keystore")
                 storePassword = "testkey"
                 keyAlias = "testkey"
                 keyPassword = "testkey"
             }
         }
         getByName("debug") {
-            storeFile = file(layout.buildDirectory.dir("../testkey.keystore"))
+            storeFile = file("testkey.keystore")
             storePassword = "testkey"
             keyAlias = "testkey"
             keyPassword = "testkey"

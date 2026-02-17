@@ -87,6 +87,10 @@ if [ "$SHOULD_UNSHARE" -eq 1 ]; then
 #!/system/bin/sh
 set -e
 
+# $1 is ALPINE_DIR, shift to get remaining args
+ALPINE_DIR="$1"
+shift
+
 # Save our PID for FIRST_ONLY mode
 if [ "$UNSHARE_MODE" -eq 1 ] && [ -n "$FIRST_SESSION_FLAG" ]; then
     echo $$ > "$FIRST_SESSION_FLAG"
@@ -95,24 +99,24 @@ fi
 # Mount system directories
 for system_mnt in /apex /odm /product /system /system_ext /vendor; do
     if [ -e "$system_mnt" ]; then
-        mkdir -p "$1$system_mnt" 2>/dev/null || true
-        mount --bind "$system_mnt" "$1$system_mnt" 2>/dev/null || true
+        mkdir -p "$ALPINE_DIR$system_mnt" 2>/dev/null || true
+        mount --bind "$system_mnt" "$ALPINE_DIR$system_mnt" 2>/dev/null || true
     fi
 done
 
 # Mount proc, sys, dev
-mkdir -p "$1/proc" "$1/sys" "$1/dev" 2>/dev/null || true
-mount -t proc proc "$1/proc" 2>/dev/null || true
-mount -t sysfs sys "$1/sys" 2>/dev/null || true
-mount --bind /dev "$1/dev" 2>/dev/null || true
+mkdir -p "$ALPINE_DIR/proc" "$ALPINE_DIR/sys" "$ALPINE_DIR/dev" 2>/dev/null || true
+mount -t proc proc "$ALPINE_DIR/proc" 2>/dev/null || true
+mount -t sysfs sys "$ALPINE_DIR/sys" 2>/dev/null || true
+mount --bind /dev "$ALPINE_DIR/dev" 2>/dev/null || true
 
 # Mount storage
-mkdir -p "$1/sdcard" "$1/storage" 2>/dev/null || true
-mount --bind /sdcard "$1/sdcard" 2>/dev/null || true
-mount --bind /storage "$1/storage" 2>/dev/null || true
+mkdir -p "$ALPINE_DIR/sdcard" "$ALPINE_DIR/storage" 2>/dev/null || true
+mount --bind /sdcard "$ALPINE_DIR/sdcard" 2>/dev/null || true
+mount --bind /storage "$ALPINE_DIR/storage" 2>/dev/null || true
 
 # Chroot and exec init as PID 1
-exec chroot "$1" /sbin/init "$@"
+exec chroot "$ALPINE_DIR" /sbin/init "$@"
 EOFSCRIPT
     
     chmod +x "$PROOT_TMP_DIR/chroot-exec.sh"

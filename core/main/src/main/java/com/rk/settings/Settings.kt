@@ -47,7 +47,7 @@ object Settings {
         set(value) = Preference.setInt(key = "workingMode",value)
 
     var unshare_mode
-        get() = Preference.getInt(key = "unshareMode", default = 1) // Default to FIRST_ONLY
+        get() = Preference.getInt(key = "unshareMode", default = 1) // Default to UnshareMode.FIRST_ONLY
         set(value) = Preference.setInt(key = "unshareMode",value)
 
     var custom_background_name
