@@ -8,6 +8,8 @@ Download the latest APK from the [Releases Section](https://github.com/RohitKush
 - [x] Virtual Keys
 - [x] Multiple Sessions
 - [x] Alpine Linux support
+  - [x] PRoot mode (rootless)
+  - [x] Chroot mode (requires root)
 
 # Screenshots
 <div>
@@ -53,6 +55,63 @@ This bypasses the need for execute permissions since the script is interpreted b
 
 ### **Option 3: Use Shizuku for Full Shell Access (Recommended)**
 If you have **Shizuku** installed, you can gain shell access to `/data/local/tmp`, which has executable permissions. This is the easiest way to run binaries without restrictions.
+
+---
+
+## Alpine Container Modes
+
+ReTerminal supports two modes for running the Alpine Linux container:
+
+### **PRoot Mode (Default)**
+- **Requirements:** No root access needed
+- **How it works:** Uses PRoot to create a sandboxed environment without requiring system-level privileges
+- **Best for:** Regular users without root access
+
+To switch container modes, go to **Settings** → "Alpine Container mode" and select your preferred mode.
+
+### **Chroot Mode**
+- **Requirements:** Root access (via su or Magisk)
+- **How it works:** Uses `chroot` with optional namespace isolation for the Alpine container
+- **Benefits:** 
+  - Better performance compared to PRoot
+  - More native container experience
+  - Configurable isolation levels
+- **How to enable:** Go to Settings → Alpine Container mode → Select "Chroot"
+
+#### **Chroot Options**
+
+When using Chroot mode, you can configure three additional options that can work independently or in combination:
+
+1. **Use unshare** (default: ON)
+   - When enabled: Creates isolated namespaces (mount, PID, UTS, IPC) for better isolation
+   - When disabled: Uses basic chroot without namespace isolation (lighter but less isolated)
+   
+2. **Share namespace** (default: OFF, requires unshare to be ON)
+   - When enabled: All terminal sessions share the same namespace (processes visible across sessions)
+   - When disabled: Each session gets its own isolated namespace (processes not visible across sessions)
+   - **Can be combined with PID 1** for shared namespace with init daemon
+
+3. **Ensure PID 1** (default: OFF, requires unshare to be ON)
+   - When enabled: First session's init process becomes PID 1 in the Alpine container
+   - Important for proper signal handling and orphan process reaping
+   - Required by some init systems (like systemd)
+   - **Can be combined with shared namespace** for namespace daemon behavior
+
+**Configuration examples:**
+- **Maximum isolation (default):** Unshare ON, Share namespace OFF, PID 1 OFF
+  - Each session fully isolated in its own namespace
+- **Shared environment:** Unshare ON, Share namespace ON, PID 1 OFF
+  - All sessions share processes/mounts, can interact with each other
+- **Proper init system (isolated):** Unshare ON, Share namespace OFF, PID 1 ON
+  - Each session has init as PID 1, proper signal handling
+- **Shared namespace with init daemon:** Unshare ON, Share namespace ON, PID 1 ON ⭐
+  - First session creates shared namespace with init as PID 1 (daemon)
+  - Subsequent sessions join the namespace and see init as PID 1
+  - Best for persistent services and proper process management
+- **Minimal overhead:** Unshare OFF
+  - Basic chroot, no namespace isolation
+
+To configure these options, go to **Settings** → Select "Chroot" container mode → Configure "Chroot Options".
 
 
 ## Found this app useful? :heart:

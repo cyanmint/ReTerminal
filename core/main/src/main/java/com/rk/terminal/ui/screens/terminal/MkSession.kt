@@ -16,6 +16,7 @@ import com.rk.terminal.App.Companion.getTempDir
 import com.rk.terminal.BuildConfig
 import com.rk.terminal.ui.activities.terminal.MainActivity
 import com.rk.terminal.ui.screens.settings.WorkingMode
+import com.rk.terminal.ui.screens.settings.ContainerMode
 import com.termux.terminal.TerminalEmulator
 import com.termux.terminal.TerminalSession
 import com.termux.terminal.TerminalSessionClient
@@ -40,21 +41,6 @@ object MkSession {
             )
 
             val workingDir = pendingCommand?.workingDir ?: alpineHomeDir().path
-
-            val initFile: File = localBinDir().child("init-host")
-
-            if (initFile.exists().not()){
-                initFile.createFileIfNot()
-                initFile.writeText(assets.open("init-host.sh").bufferedReader().use { it.readText() })
-            }
-
-
-            localBinDir().child("init").apply {
-                if (exists().not()){
-                    createFileIfNot()
-                    writeText(assets.open("init.sh").bufferedReader().use { it.readText() })
-                }
-            }
 
 
             val env = mutableListOf(
@@ -111,17 +97,32 @@ object MkSession {
             }
 
             val args: Array<String>
+            val shell: String
 
-            val shell = if (pendingCommand == null) {
-                args = if (workingMode == WorkingMode.ALPINE){
-                    arrayOf("-c",initFile.absolutePath)
-                }else{
-                    arrayOf()
+            if (pendingCommand == null) {
+                if (workingMode == WorkingMode.ALPINE) {
+                    // Build command array directly without scripts
+                    val commandArray = CommandBuilder.buildCommand(
+                        containerMode = Settings.container_Mode,
+                        useUnshare = Settings.use_unshare,
+                        shareNamespace = Settings.share_namespace,
+                        useSu = Settings.use_su,
+                        alpineDir = alpineDir(),
+                        nativeLibDir = applicationInfo.nativeLibraryDir,
+                        prefix = filesDir.parentFile!!.path
+                    )
+                    
+                    // First element is the shell/command to execute
+                    shell = commandArray[0]
+                    // Rest are the arguments
+                    args = commandArray.sliceArray(1 until commandArray.size)
+                } else {
+                    shell = "/system/bin/sh"
+                    args = arrayOf()
                 }
-                "/system/bin/sh"
-            } else{
+            } else {
+                shell = pendingCommand!!.shell
                 args = pendingCommand!!.args
-                pendingCommand!!.shell
             }
 
             pendingCommand = null

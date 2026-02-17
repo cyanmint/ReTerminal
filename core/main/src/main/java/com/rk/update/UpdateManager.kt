@@ -8,24 +8,17 @@ import java.io.File
 
 class UpdateManager {
     fun onUpdate(){
+        // Clean up old script files if they exist
         val initFile: File = localBinDir().child("init-host")
         if(initFile.exists()){
             initFile.delete()
-        }
-
-        if (initFile.exists().not()){
-            initFile.createFileIfNot()
-            initFile.writeText(application!!.assets.open("init-host.sh").bufferedReader().use { it.readText() })
         }
 
         val initFilex: File = localBinDir().child("init")
         if(initFilex.exists()){
             initFilex.delete()
         }
-
-        if (initFilex.exists().not()){
-            initFilex.createFileIfNot()
-            initFilex.writeText(application!!.assets.open("init.sh").bufferedReader().use { it.readText() })
-        }
+        
+        // No longer need to install scripts - commands are built directly in code
     }
 }
