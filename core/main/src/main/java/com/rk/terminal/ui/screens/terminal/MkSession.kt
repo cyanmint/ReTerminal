@@ -14,7 +14,9 @@ import com.rk.settings.Settings
 import com.rk.terminal.App
 import com.rk.terminal.App.Companion.getTempDir
 import com.rk.terminal.BuildConfig
+import com.rk.terminal.service.NamespaceManager
 import com.rk.terminal.ui.activities.terminal.MainActivity
+import com.rk.terminal.ui.screens.settings.UnshareMode
 import com.rk.terminal.ui.screens.settings.WorkingMode
 import com.termux.terminal.TerminalEmulator
 import com.termux.terminal.TerminalSession
@@ -56,6 +58,13 @@ object MkSession {
                 }
             }
 
+            // Create init-chroot script for CHROOT mode
+            val initChrootFile: File = localBinDir().child("init-chroot")
+            if (initChrootFile.exists().not()){
+                initChrootFile.createFileIfNot()
+                initChrootFile.writeText(assets.open("init-chroot.sh").bufferedReader().use { it.readText() })
+            }
+
 
             val env = mutableListOf(
                 "PATH=${System.getenv("PATH")}:/sbin:${localBinDir().absolutePath}",
@@ -89,6 +98,18 @@ object MkSession {
                 env.add("SECCOMP=1")
             }
 
+            // Add unshare mode and first session PID for CHROOT mode
+            if (workingMode == WorkingMode.CHROOT) {
+                env.add("UNSHARE_MODE=${Settings.unshare_mode}")
+                
+                // For FIRST_ONLY mode, pass the first session PID if it exists
+                if (Settings.unshare_mode == UnshareMode.FIRST_ONLY) {
+                    NamespaceManager.getFirstSessionPid()?.let {
+                        env.add("FIRST_SESSION_PID=$it")
+                    }
+                }
+            }
+
 
 
 
@@ -113,10 +134,10 @@ object MkSession {
             val args: Array<String>
 
             val shell = if (pendingCommand == null) {
-                args = if (workingMode == WorkingMode.ALPINE){
-                    arrayOf("-c",initFile.absolutePath)
-                }else{
-                    arrayOf()
+                args = when (workingMode) {
+                    WorkingMode.ALPINE -> arrayOf("-c", initFile.absolutePath)
+                    WorkingMode.CHROOT -> arrayOf("-c", initChrootFile.absolutePath)
+                    else -> arrayOf()
                 }
                 "/system/bin/sh"
             } else{

@@ -46,6 +46,10 @@ object Settings {
         get() = Preference.getInt(key = "workingMode", default = WorkingMode.ALPINE)
         set(value) = Preference.setInt(key = "workingMode",value)
 
+    var unshare_mode
+        get() = Preference.getInt(key = "unshareMode", default = 1) // Default to FIRST_ONLY
+        set(value) = Preference.setInt(key = "unshareMode",value)
+
     var custom_background_name
         get() = Preference.getString(key = "custom_bg_name", default = "No Image Selected")
         set(value) = Preference.setString(key = "custom_bg_name",value)

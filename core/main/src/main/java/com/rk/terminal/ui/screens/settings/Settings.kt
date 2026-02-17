@@ -70,6 +70,13 @@ fun SettingsCard(
 object WorkingMode{
     const val ALPINE = 0
     const val ANDROID = 1
+    const val CHROOT = 2
+}
+
+object UnshareMode{
+    const val OWN_NS = 0        // Each session gets its own namespace
+    const val FIRST_ONLY = 1    // First session unshares, others nsenter
+    const val NO_UNSHARE = 2    // No namespace isolation
 }
 
 
@@ -118,6 +125,23 @@ fun Settings(modifier: Modifier = Modifier,navController: NavController,mainActi
                     selectedOption = WorkingMode.ANDROID
                     Settings.working_Mode = selectedOption
                 })
+
+            SettingsCard(
+                title = { Text("Chroot") },
+                description = {Text("Alpine Linux with chroot and namespace support")},
+                startWidget = {
+                    RadioButton(
+                        modifier = Modifier.padding(start = 8.dp),
+                        selected = selectedOption == WorkingMode.CHROOT,
+                        onClick = {
+                            selectedOption = WorkingMode.CHROOT
+                            Settings.working_Mode = selectedOption
+                        })
+                },
+                onClick = {
+                    selectedOption = WorkingMode.CHROOT
+                    Settings.working_Mode = selectedOption
+                })
         }
 
 
@@ -131,6 +155,64 @@ fun Settings(modifier: Modifier = Modifier,navController: NavController,mainActi
             }, endWidget = {
                 Icon(imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null,modifier = Modifier.padding(16.dp))
             })
+        }
+
+        // Chroot mode settings - only show when CHROOT mode is selected
+        if (selectedOption == WorkingMode.CHROOT) {
+            var selectedUnshareMode by remember { mutableIntStateOf(Settings.unshare_mode) }
+            
+            PreferenceGroup(heading = "Namespace Mode") {
+                SettingsCard(
+                    title = { Text("Own namespace") },
+                    description = { Text("Each session gets its own namespace") },
+                    startWidget = {
+                        RadioButton(
+                            modifier = Modifier.padding(start = 8.dp),
+                            selected = selectedUnshareMode == UnshareMode.OWN_NS,
+                            onClick = {
+                                selectedUnshareMode = UnshareMode.OWN_NS
+                                Settings.unshare_mode = selectedUnshareMode
+                            })
+                    },
+                    onClick = {
+                        selectedUnshareMode = UnshareMode.OWN_NS
+                        Settings.unshare_mode = selectedUnshareMode
+                    })
+
+                SettingsCard(
+                    title = { Text("Shared namespace") },
+                    description = { Text("First session creates namespace, others join it") },
+                    startWidget = {
+                        RadioButton(
+                            modifier = Modifier.padding(start = 8.dp),
+                            selected = selectedUnshareMode == UnshareMode.FIRST_ONLY,
+                            onClick = {
+                                selectedUnshareMode = UnshareMode.FIRST_ONLY
+                                Settings.unshare_mode = selectedUnshareMode
+                            })
+                    },
+                    onClick = {
+                        selectedUnshareMode = UnshareMode.FIRST_ONLY
+                        Settings.unshare_mode = selectedUnshareMode
+                    })
+
+                SettingsCard(
+                    title = { Text("No namespace") },
+                    description = { Text("Simple chroot without namespace isolation") },
+                    startWidget = {
+                        RadioButton(
+                            modifier = Modifier.padding(start = 8.dp),
+                            selected = selectedUnshareMode == UnshareMode.NO_UNSHARE,
+                            onClick = {
+                                selectedUnshareMode = UnshareMode.NO_UNSHARE
+                                Settings.unshare_mode = selectedUnshareMode
+                            })
+                    },
+                    onClick = {
+                        selectedUnshareMode = UnshareMode.NO_UNSHARE
+                        Settings.unshare_mode = selectedUnshareMode
+                    })
+            }
         }
 
         PreferenceGroup {
