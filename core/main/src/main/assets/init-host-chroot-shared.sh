@@ -2,6 +2,8 @@
 
 ALPINE_DIR=$PREFIX/local/alpine
 NAMESPACE_PID_FILE=$PREFIX/local/.alpine-ns-pid
+KEEPER_SLEEP_INTERVAL=3600  # How long keeper sleeps between checks (1 hour)
+NAMESPACE_CREATION_WAIT=0.5 # How long to wait for namespace creation (seconds)
 
 mkdir -p $ALPINE_DIR
 
@@ -125,7 +127,7 @@ else
             fi
             
             # Start a background sleep to keep namespace alive
-            ( while true; do sleep 3600; done ) &
+            ( while true; do sleep $KEEPER_SLEEP_INTERVAL; done ) &
             KEEPER_PID=\$!
             
             # Run the actual session
@@ -138,7 +140,7 @@ else
     " &
     
     # Wait a moment for namespace to be created
-    sleep 0.5
+    sleep $NAMESPACE_CREATION_WAIT
     
     # Try to enter the newly created namespace
     if [ -f "$NAMESPACE_PID_FILE" ]; then
