@@ -9,7 +9,7 @@ import java.io.File
 
 /**
  * Builds command arrays for different container execution modes.
- * Eliminates the need for intermediate shell scripts.
+ * Commands are executed separately instead of bundled into shell strings.
  */
 object CommandBuilder {
     
@@ -49,46 +49,48 @@ object CommandBuilder {
     
     /**
      * Build command array for basic chroot (no namespace)
+     * Mounts are executed separately before this command
      */
     fun buildChrootCommand(
         alpineDir: File,
         useSu: Boolean
     ): Array<String> {
-        val mountCommands = buildMountCommands(alpineDir)
-        val chrootCmd = "chroot ${alpineDir.absolutePath} /bin/sh -c 'cd /root && exec /bin/sh'"
-        
-        val shellCommand = if (mountCommands.isNotEmpty()) {
-            "$mountCommands && $chrootCmd"
-        } else {
-            chrootCmd
-        }
+        // Simple chroot command - mounts handled separately by ContainerSetup
+        val chrootPath = alpineDir.absolutePath
         
         return if (useSu) {
-            arrayOf("su", "-c", "sh -c \"$shellCommand\"")
+            arrayOf("su", "-c", "chroot $chrootPath /bin/sh -c 'cd /root && exec /bin/sh'")
         } else {
-            arrayOf("sh", "-c", shellCommand)
+            arrayOf("chroot", chrootPath, "/bin/sh", "-c", "cd /root && exec /bin/sh")
         }
     }
     
     /**
      * Build command array for chroot with isolated namespace
      * When unsharing, use /sbin/init to make it PID 1 (default behavior)
+     * Mounts are executed inside the namespace
      */
     fun buildChrootIsolatedCommand(
         alpineDir: File,
         useSu: Boolean
     ): Array<String> {
-        val mountCommands = buildMountCommands(alpineDir)
-        val procMount = "mount -t proc proc ${alpineDir.absolutePath}/proc 2>/dev/null || true"
-        // Use /sbin/init when unsharing to make it PID 1
-        val chrootCmd = "chroot ${alpineDir.absolutePath} /sbin/init"
+        val chrootPath = alpineDir.absolutePath
         
-        val shellCommand = "unshare -a -f sh -c '$procMount && $mountCommands && exec $chrootCmd'"
+        // Mount proc and bind mounts inside the namespace, then exec chroot with /sbin/init
+        val setupAndChroot = """
+            mount -t proc proc $chrootPath/proc 2>/dev/null || true &&
+            mount --bind /sdcard $chrootPath/sdcard 2>/dev/null || true &&
+            mount --bind /storage $chrootPath/storage 2>/dev/null || true &&
+            mount --bind /data/data $chrootPath/data/data 2>/dev/null || true &&
+            mount --bind /system $chrootPath/system 2>/dev/null || true &&
+            mount --bind /vendor $chrootPath/vendor 2>/dev/null || true &&
+            exec chroot $chrootPath /sbin/init
+        """.trimIndent().replace("\n", " ")
         
         return if (useSu) {
-            arrayOf("su", "-c", "sh -c \"$shellCommand\"")
+            arrayOf("su", "-c", "unshare -a -f sh -c '$setupAndChroot'")
         } else {
-            arrayOf("sh", "-c", shellCommand)
+            arrayOf("unshare", "-a", "-f", "sh", "-c", setupAndChroot)
         }
     }
     
@@ -102,6 +104,7 @@ object CommandBuilder {
         prefix: String,
         useSu: Boolean
     ): Array<String> {
+        val chrootPath = alpineDir.absolutePath
         val namespacePidFile = File(localDir().absolutePath, ".alpine-ns-pid")
         
         // Check if namespace already exists
@@ -113,52 +116,39 @@ object CommandBuilder {
         
         return if (isFirstSession) {
             // First session: create namespace with /sbin/init as PID 1
-            val mountCommands = buildMountCommands(alpineDir)
-            val procMount = "mount -t proc proc ${alpineDir.absolutePath}/proc 2>/dev/null || true"
-            val savePid = "echo \$\$ > ${namespacePidFile.absolutePath}"
-            // Use /sbin/init when unsharing to make it PID 1
-            val chrootCmd = "chroot ${alpineDir.absolutePath} /sbin/init"
-            
-            // Run chroot in background and wait to keep namespace alive
-            val unshareCmd = "unshare -a -f sh -c '$savePid && $procMount && $mountCommands && ($chrootCmd &) && wait'"
+            val pidFile = namespacePidFile.absolutePath
+            val setupAndChroot = """
+                echo $$ > $pidFile &&
+                mount -t proc proc $chrootPath/proc 2>/dev/null || true &&
+                mount --bind /sdcard $chrootPath/sdcard 2>/dev/null || true &&
+                mount --bind /storage $chrootPath/storage 2>/dev/null || true &&
+                mount --bind /data/data $chrootPath/data/data 2>/dev/null || true &&
+                mount --bind /system $chrootPath/system 2>/dev/null || true &&
+                mount --bind /vendor $chrootPath/vendor 2>/dev/null || true &&
+                (chroot $chrootPath /sbin/init &) && wait
+            """.trimIndent().replace("\n", " ")
             
             if (useSu) {
-                arrayOf("su", "-c", unshareCmd)
+                arrayOf("su", "-c", "unshare -a -f sh -c '$setupAndChroot'")
             } else {
-                arrayOf("sh", "-c", unshareCmd)
+                arrayOf("unshare", "-a", "-f", "sh", "-c", setupAndChroot)
             }
         } else {
             // Subsequent sessions: join existing namespace and use /bin/sh
             val nsPid = namespacePidFile.readText().trim()
-            // Use /bin/sh when entering existing namespace (init already running as PID 1)
-            val chrootCmd = "chroot ${alpineDir.absolutePath} /bin/sh -c 'cd /root && (setsid /bin/sh </dev/null >/dev/null 2>&1 &) && sleep 0.1'"
-            val nsenterCmd = "nsenter -t $nsPid -m -p -u -i $chrootCmd"
+            val chrootShell = "chroot $chrootPath /bin/sh -c 'cd /root && (setsid /bin/sh </dev/null >/dev/null 2>&1 &) && sleep 0.1'"
             
             if (useSu) {
-                arrayOf("su", "-c", nsenterCmd)
+                arrayOf("su", "-c", "nsenter -t $nsPid -m -p -u -i $chrootShell")
             } else {
-                arrayOf("sh", "-c", nsenterCmd)
+                arrayOf("nsenter", "-t", nsPid, "-m", "-p", "-u", "-i", "chroot", chrootPath, "/bin/sh", "-c", "cd /root && (setsid /bin/sh </dev/null >/dev/null 2>&1 &) && sleep 0.1")
             }
         }
     }
     
     /**
-     * Build mount commands for chroot
-     */
-    private fun buildMountCommands(alpineDir: File): String {
-        val mounts = listOf(
-            "mount --bind /sdcard ${alpineDir.absolutePath}/sdcard 2>/dev/null || true",
-            "mount --bind /storage ${alpineDir.absolutePath}/storage 2>/dev/null || true",
-            "mount --bind /data/data ${alpineDir.absolutePath}/data/data 2>/dev/null || true",
-            "mount --bind /system ${alpineDir.absolutePath}/system 2>/dev/null || true",
-            "mount --bind /vendor ${alpineDir.absolutePath}/vendor 2>/dev/null || true"
-        )
-        
-        return mounts.joinToString(" && ")
-    }
-    
-    /**
      * Main entry point to build command based on settings
+     * Also handles prerequisite setup like mounts for basic chroot
      */
     fun buildCommand(
         containerMode: Int,
@@ -169,6 +159,11 @@ object CommandBuilder {
         nativeLibDir: String,
         prefix: String
     ): Array<String> {
+        // For basic chroot (no namespace), setup mounts before returning command
+        if (containerMode == ContainerMode.CHROOT && !useUnshare) {
+            ContainerSetup.setupMounts(alpineDir, useSu)
+        }
+        
         return when {
             containerMode == ContainerMode.PROOT -> {
                 buildProotCommand(alpineDir, nativeLibDir, prefix)
