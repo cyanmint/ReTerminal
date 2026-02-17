@@ -26,7 +26,7 @@ ALPINE_DIR="${alpineDir.absolutePath}"
 NS_PID="$nsPid"
 
 # Enter namespace and start shell in background
-echo "[DEBUG] Executing: nsenter -t ${'$'}NS_PID -m -p -u -i chroot ${'$'}ALPINE_DIR /bin/sh -c 'cd /root && (setsid /bin/sh </dev/null >/dev/null 2>&1 &) && sleep 0.1'"
+echo "[DEBUG] Executing: nsenter -t ${'$'}NS_PID -m -p -u -i chroot ${'$'}ALPINE_DIR /bin/sh -c 'cd /root && (setsid /bin/sh </dev/null >/dev/null 2>&1 &) && sleep 0.1'" >&2
 nsenter -t "${'$'}NS_PID" -m -p -u -i chroot "${'$'}ALPINE_DIR" /bin/sh -c 'cd /root && (setsid /bin/sh </dev/null >/dev/null 2>&1 &) && sleep 0.1'
 """
         scriptFile.writeText(scriptContent)
@@ -47,7 +47,7 @@ nsenter -t "${'$'}NS_PID" -m -p -u -i chroot "${'$'}ALPINE_DIR" /bin/sh -c 'cd /
 ALPINE_DIR="${alpineDir.absolutePath}"
 
 # Execute chroot and start shell in /root
-echo "[DEBUG] Executing: chroot ${'$'}ALPINE_DIR /bin/sh -c 'cd /root && exec /bin/sh'"
+echo "[DEBUG] Executing: chroot ${'$'}ALPINE_DIR /bin/sh -c 'cd /root && exec /bin/sh'" >&2
 chroot "${'$'}ALPINE_DIR" /bin/sh -c 'cd /root && exec /bin/sh'
 """
         scriptFile.writeText(scriptContent)
@@ -68,23 +68,23 @@ chroot "${'$'}ALPINE_DIR" /bin/sh -c 'cd /root && exec /bin/sh'
 ALPINE_DIR="${alpineDir.absolutePath}"
 
 # Mount proc filesystem
-echo "[DEBUG] Executing: mount -t proc proc ${'$'}ALPINE_DIR/proc"
+echo "[DEBUG] Executing: mount -t proc proc ${'$'}ALPINE_DIR/proc" >&2
 mount -t proc proc "${'$'}ALPINE_DIR/proc" 2>/dev/null || true
 
 # Bind mount Android directories
-echo "[DEBUG] Executing: mount --bind /sdcard ${'$'}ALPINE_DIR/sdcard"
+echo "[DEBUG] Executing: mount --bind /sdcard ${'$'}ALPINE_DIR/sdcard" >&2
 mount --bind /sdcard "${'$'}ALPINE_DIR/sdcard" 2>/dev/null || true
-echo "[DEBUG] Executing: mount --bind /storage ${'$'}ALPINE_DIR/storage"
+echo "[DEBUG] Executing: mount --bind /storage ${'$'}ALPINE_DIR/storage" >&2
 mount --bind /storage "${'$'}ALPINE_DIR/storage" 2>/dev/null || true
-echo "[DEBUG] Executing: mount --bind /data/data ${'$'}ALPINE_DIR/data/data"
+echo "[DEBUG] Executing: mount --bind /data/data ${'$'}ALPINE_DIR/data/data" >&2
 mount --bind /data/data "${'$'}ALPINE_DIR/data/data" 2>/dev/null || true
-echo "[DEBUG] Executing: mount --bind /system ${'$'}ALPINE_DIR/system"
+echo "[DEBUG] Executing: mount --bind /system ${'$'}ALPINE_DIR/system" >&2
 mount --bind /system "${'$'}ALPINE_DIR/system" 2>/dev/null || true
-echo "[DEBUG] Executing: mount --bind /vendor ${'$'}ALPINE_DIR/vendor"
+echo "[DEBUG] Executing: mount --bind /vendor ${'$'}ALPINE_DIR/vendor" >&2
 mount --bind /vendor "${'$'}ALPINE_DIR/vendor" 2>/dev/null || true
 
 # Execute chroot with init as PID 1
-echo "[DEBUG] Executing: exec chroot ${'$'}ALPINE_DIR /sbin/init"
+echo "[DEBUG] Executing: exec chroot ${'$'}ALPINE_DIR /sbin/init" >&2
 exec chroot "${'$'}ALPINE_DIR" /sbin/init
 """
         scriptFile.writeText(scriptContent)
@@ -106,27 +106,27 @@ ALPINE_DIR="${alpineDir.absolutePath}"
 PID_FILE="${pidFile.absolutePath}"
 
 # Save the PID for future sessions to join this namespace
-echo "[DEBUG] Saving PID ${'$'}${'$'} to ${'$'}PID_FILE"
+echo "[DEBUG] Saving PID ${'$'}${'$'} to ${'$'}PID_FILE" >&2
 echo ${'$'}${'$'} > "${'$'}PID_FILE"
 
 # Mount proc filesystem
-echo "[DEBUG] Executing: mount -t proc proc ${'$'}ALPINE_DIR/proc"
+echo "[DEBUG] Executing: mount -t proc proc ${'$'}ALPINE_DIR/proc" >&2
 mount -t proc proc "${'$'}ALPINE_DIR/proc" 2>/dev/null || true
 
 # Bind mount Android directories
-echo "[DEBUG] Executing: mount --bind /sdcard ${'$'}ALPINE_DIR/sdcard"
+echo "[DEBUG] Executing: mount --bind /sdcard ${'$'}ALPINE_DIR/sdcard" >&2
 mount --bind /sdcard "${'$'}ALPINE_DIR/sdcard" 2>/dev/null || true
-echo "[DEBUG] Executing: mount --bind /storage ${'$'}ALPINE_DIR/storage"
+echo "[DEBUG] Executing: mount --bind /storage ${'$'}ALPINE_DIR/storage" >&2
 mount --bind /storage "${'$'}ALPINE_DIR/storage" 2>/dev/null || true
-echo "[DEBUG] Executing: mount --bind /data/data ${'$'}ALPINE_DIR/data/data"
+echo "[DEBUG] Executing: mount --bind /data/data ${'$'}ALPINE_DIR/data/data" >&2
 mount --bind /data/data "${'$'}ALPINE_DIR/data/data" 2>/dev/null || true
-echo "[DEBUG] Executing: mount --bind /system ${'$'}ALPINE_DIR/system"
+echo "[DEBUG] Executing: mount --bind /system ${'$'}ALPINE_DIR/system" >&2
 mount --bind /system "${'$'}ALPINE_DIR/system" 2>/dev/null || true
-echo "[DEBUG] Executing: mount --bind /vendor ${'$'}ALPINE_DIR/vendor"
+echo "[DEBUG] Executing: mount --bind /vendor ${'$'}ALPINE_DIR/vendor" >&2
 mount --bind /vendor "${'$'}ALPINE_DIR/vendor" 2>/dev/null || true
 
 # Launch init in background and wait
-echo "[DEBUG] Executing: chroot ${'$'}ALPINE_DIR /sbin/init (in background)"
+echo "[DEBUG] Executing: chroot ${'$'}ALPINE_DIR /sbin/init (in background)" >&2
 (chroot "${'$'}ALPINE_DIR" /sbin/init &)
 wait
 """
@@ -187,7 +187,7 @@ wait
             // Create a wrapper that calls su with the script
             val suWrapper = File(localBinDir(), "su-wrapper-basic.sh")
             suWrapper.writeText("""#!/system/bin/sh
-echo "[DEBUG] Executing: su -c \"sh $scriptPath\""
+echo "[DEBUG] Executing: su -c \"sh $scriptPath\"" >&2
 su -c "sh $scriptPath"
 """)
             suWrapper.setReadable(true, true)
@@ -215,7 +215,7 @@ su -c "sh $scriptPath"
             // Create a wrapper that calls su with unshare
             val suWrapper = File(localBinDir(), "su-wrapper-isolated.sh")
             suWrapper.writeText("""#!/system/bin/sh
-echo "[DEBUG] Executing: su -c \"unshare -a -f /system/bin/sh $scriptPath\""
+echo "[DEBUG] Executing: su -c \"unshare -a -f /system/bin/sh $scriptPath\"" >&2
 su -c "unshare -a -f /system/bin/sh $scriptPath"
 """)
             suWrapper.setReadable(true, true)
@@ -268,7 +268,7 @@ su -c "unshare -a -f /system/bin/sh $scriptPath"
                 // Create a wrapper that calls su with unshare
                 val suWrapper = File(localBinDir(), "su-wrapper-shared.sh")
                 suWrapper.writeText("""#!/system/bin/sh
-echo "[DEBUG] Executing: su -c \"unshare -a -f /system/bin/sh $scriptPath\""
+echo "[DEBUG] Executing: su -c \"unshare -a -f /system/bin/sh $scriptPath\"" >&2
 su -c "unshare -a -f /system/bin/sh $scriptPath"
 """)
                 suWrapper.setReadable(true, true)
@@ -290,7 +290,7 @@ su -c "unshare -a -f /system/bin/sh $scriptPath"
                     // Create a wrapper that calls su with sh
                     val suWrapper = File(localBinDir(), "su-wrapper-nsenter.sh")
                     suWrapper.writeText("""#!/system/bin/sh
-echo "[DEBUG] Executing: su -c \"/system/bin/sh $scriptPath\""
+echo "[DEBUG] Executing: su -c \"/system/bin/sh $scriptPath\"" >&2
 su -c "/system/bin/sh $scriptPath"
 """)
                     suWrapper.setReadable(true, true)
@@ -308,7 +308,7 @@ su -c "/system/bin/sh $scriptPath"
                     // Create a wrapper that calls su with unshare
                     val suWrapper = File(localBinDir(), "su-wrapper-shared-fallback.sh")
                     suWrapper.writeText("""#!/system/bin/sh
-echo "[DEBUG] Executing: su -c \"unshare -a -f /system/bin/sh $scriptPath\""
+echo "[DEBUG] Executing: su -c \"unshare -a -f /system/bin/sh $scriptPath\"" >&2
 su -c "unshare -a -f /system/bin/sh $scriptPath"
 """)
                     suWrapper.setReadable(true, true)
