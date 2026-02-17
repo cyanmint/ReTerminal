@@ -167,7 +167,14 @@ wait
         val scriptPath = scriptFile.absolutePath
         
         return if (useSu) {
-            arrayOf("su", "-c", "/system/bin/sh $scriptPath")
+            // Create a wrapper that calls su with the script
+            val suWrapper = File(localBinDir(), "su-wrapper-basic.sh")
+            suWrapper.writeText("""#!/system/bin/sh
+su -c "sh $scriptPath"
+""")
+            suWrapper.setReadable(true, true)
+            suWrapper.setWritable(true, true)
+            arrayOf("sh", suWrapper.absolutePath)
         } else {
             arrayOf("/system/bin/sh", scriptPath)
         }
@@ -187,7 +194,14 @@ wait
         val scriptPath = scriptFile.absolutePath
         
         return if (useSu) {
-            arrayOf("su", "-c", "unshare -a -f /system/bin/sh $scriptPath")
+            // Create a wrapper that calls su with unshare
+            val suWrapper = File(localBinDir(), "su-wrapper-isolated.sh")
+            suWrapper.writeText("""#!/system/bin/sh
+su -c "unshare -a -f /system/bin/sh $scriptPath"
+""")
+            suWrapper.setReadable(true, true)
+            suWrapper.setWritable(true, true)
+            arrayOf("sh", suWrapper.absolutePath)
         } else {
             arrayOf("unshare", "-a", "-f", "/system/bin/sh", scriptPath)
         }
@@ -232,7 +246,14 @@ wait
             val scriptPath = scriptFile.absolutePath
             
             if (useSu) {
-                arrayOf("su", "-c", "unshare -a -f /system/bin/sh $scriptPath")
+                // Create a wrapper that calls su with unshare
+                val suWrapper = File(localBinDir(), "su-wrapper-shared.sh")
+                suWrapper.writeText("""#!/system/bin/sh
+su -c "unshare -a -f /system/bin/sh $scriptPath"
+""")
+                suWrapper.setReadable(true, true)
+                suWrapper.setWritable(true, true)
+                arrayOf("sh", suWrapper.absolutePath)
             } else {
                 arrayOf("unshare", "-a", "-f", "/system/bin/sh", scriptPath)
             }
@@ -246,7 +267,14 @@ wait
                 val scriptPath = scriptFile.absolutePath
                 
                 if (useSu) {
-                    arrayOf("su", "-c", "/system/bin/sh $scriptPath")
+                    // Create a wrapper that calls su with sh
+                    val suWrapper = File(localBinDir(), "su-wrapper-nsenter.sh")
+                    suWrapper.writeText("""#!/system/bin/sh
+su -c "/system/bin/sh $scriptPath"
+""")
+                    suWrapper.setReadable(true, true)
+                    suWrapper.setWritable(true, true)
+                    arrayOf("sh", suWrapper.absolutePath)
                 } else {
                     arrayOf("/system/bin/sh", scriptPath)
                 }
@@ -256,7 +284,14 @@ wait
                 val scriptPath = scriptFile.absolutePath
                 
                 if (useSu) {
-                    arrayOf("su", "-c", "unshare -a -f /system/bin/sh $scriptPath")
+                    // Create a wrapper that calls su with unshare
+                    val suWrapper = File(localBinDir(), "su-wrapper-shared-fallback.sh")
+                    suWrapper.writeText("""#!/system/bin/sh
+su -c "unshare -a -f /system/bin/sh $scriptPath"
+""")
+                    suWrapper.setReadable(true, true)
+                    suWrapper.setWritable(true, true)
+                    arrayOf("sh", suWrapper.absolutePath)
                 } else {
                     arrayOf("unshare", "-a", "-f", "/system/bin/sh", scriptPath)
                 }
