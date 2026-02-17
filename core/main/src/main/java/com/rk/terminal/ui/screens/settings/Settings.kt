@@ -157,11 +157,10 @@ fun Settings(modifier: Modifier = Modifier,navController: NavController,mainActi
             })
         }
 
-        // Chroot mode settings - only show when CHROOT mode is selected
-        if (selectedOption == WorkingMode.CHROOT) {
-            var selectedUnshareMode by remember { mutableIntStateOf(Settings.unshare_mode) }
-            
-            PreferenceGroup(heading = "Namespace Mode") {
+        // Chroot namespace settings - always visible for configuration
+        var selectedUnshareMode by remember { mutableIntStateOf(Settings.unshare_mode) }
+        
+        PreferenceGroup(heading = "Chroot Namespace Mode") {
                 SettingsCard(
                     title = { Text("Own namespace") },
                     description = { Text("Each session gets its own namespace") },
@@ -212,7 +211,6 @@ fun Settings(modifier: Modifier = Modifier,navController: NavController,mainActi
                         selectedUnshareMode = UnshareMode.NO_UNSHARE
                         Settings.unshare_mode = selectedUnshareMode
                     })
-            }
         }
 
         PreferenceGroup {

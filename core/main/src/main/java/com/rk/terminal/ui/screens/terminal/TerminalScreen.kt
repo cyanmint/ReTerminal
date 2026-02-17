@@ -265,7 +265,7 @@ fun TerminalScreen(
                 PreferenceGroup {
                     SettingsCard(
                         title = { Text("Alpine") },
-                        description = {Text("Alpine Linux")},
+                        description = {Text("Alpine Linux with proot")},
                         onClick = {
                            createSession(workingMode = WorkingMode.ALPINE)
                             showAddDialog = false
@@ -276,6 +276,14 @@ fun TerminalScreen(
                         description = {Text("ReTerminal Android shell")},
                         onClick = {
                             createSession(workingMode = WorkingMode.ANDROID)
+                            showAddDialog = false
+                        })
+
+                    SettingsCard(
+                        title = { Text("Chroot") },
+                        description = {Text("Alpine Linux with chroot and namespace support")},
+                        onClick = {
+                            createSession(workingMode = WorkingMode.CHROOT)
                             showAddDialog = false
                         })
                 }
