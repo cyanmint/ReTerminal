@@ -27,11 +27,36 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      - name: Check if secrets are available
+        id: check_secrets
+        run: |
+          if [ -n "${{ secrets.KEYSTORE }}" ] && [ -n "${{ secrets.PROP }}" ]; then
+            echo "SECRETS_AVAILABLE=true" >> $GITHUB_OUTPUT
+          else
+            echo "SECRETS_AVAILABLE=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Decode and create xed.keystore
+        if: steps.check_secrets.outputs.SECRETS_AVAILABLE == 'true'
         run: echo "${{ secrets.KEYSTORE }}" | base64 -d > /tmp/xed.keystore
 
       - name: Decode and create signing.properties
+        if: steps.check_secrets.outputs.SECRETS_AVAILABLE == 'true'
         run: echo "${{ secrets.PROP }}" | base64 -d > /tmp/signing.properties
+
+      - name: Create temporary keystore for CI
+        if: steps.check_secrets.outputs.SECRETS_AVAILABLE == 'false'
+        run: |
+          keytool -genkeypair -v \
+            -keystore /tmp/temp-ci.keystore \
+            -alias temp-ci-key \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 1 \
+            -storepass temp-ci-password \
+            -keypass temp-ci-password \
+            -dname "CN=CI Temporary Key, OU=CI, O=GitHub Actions, L=Internet, ST=Cloud, C=US"
+          echo "Created temporary keystore for CI build"
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -48,16 +73,18 @@ jobs:
         continue-on-error: false
 
       - name: Archive APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
-          name: Karbon-Release
+          name: ReTerminal-Release-${{ env.COMMIT_HASH }}
           path: app/reterminal-${{ env.COMMIT_HASH }}.apk
+          compression-level: 0
 
-      - name: Delete xed.keystore and signing.properties
-        run: rm /tmp/xed.keystore /tmp/signing.properties
+      - name: Delete signing files
+        if: always()
+        run: rm -f /tmp/xed.keystore /tmp/signing.properties /tmp/temp-ci.keystore
 
       - name: Send APK to Telegram
-        if: ${{ success() && github.event.head_commit.message != '' }}
+        if: ${{ success() && github.event.head_commit.message != '' && steps.check_secrets.outputs.SECRETS_AVAILABLE == 'true' }}
         run: |
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT }}/sendDocument" \
           -F chat_id="-1002292589492" \

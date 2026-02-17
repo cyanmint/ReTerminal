@@ -49,6 +49,17 @@ android {
                 storePassword = properties["storePassword"] as String?
             } else {
                 println("Signing properties file not found at $propertiesFilePath")
+                // Fallback to temporary keystore for CI builds
+                if (isGITHUB_ACTION) {
+                    val tempKeystore = File("/tmp/temp-ci.keystore")
+                    if (tempKeystore.exists()) {
+                        storeFile = tempKeystore
+                        storePassword = "temp-ci-password"
+                        keyAlias = "temp-ci-key"
+                        keyPassword = "temp-ci-password"
+                        println("Using temporary CI keystore for signing")
+                    }
+                }
             }
         }
         getByName("debug") {
@@ -68,7 +79,15 @@ android {
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            // Use release signing if available, otherwise fall back to debug signing
+            val releaseConfig = signingConfigs.getByName("release")
+            signingConfig = if (releaseConfig.storeFile?.exists() == true && 
+                              releaseConfig.storePassword != null) {
+                releaseConfig
+            } else {
+                println("Release signing not available, using debug signing")
+                signingConfigs.getByName("debug")
+            }
             resValue("string","app_name","ReTerminal")
         }
         debug{
