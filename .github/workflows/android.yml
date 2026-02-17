@@ -28,15 +28,15 @@ jobs:
           cache: gradle
 
       - name: Decode and create xed.keystore
-        if: ${{ secrets.KEYSTORE != '' }}
+        if: secrets.KEYSTORE != ''
         run: echo "${{ secrets.KEYSTORE }}" | base64 -d > /tmp/xed.keystore
 
       - name: Decode and create signing.properties
-        if: ${{ secrets.PROP != '' }}
+        if: secrets.PROP != ''
         run: echo "${{ secrets.PROP }}" | base64 -d > /tmp/signing.properties
 
       - name: Create temporary keystore if secrets not available
-        if: ${{ secrets.KEYSTORE == '' || secrets.PROP == '' }}
+        if: secrets.KEYSTORE == '' || secrets.PROP == ''
         run: |
           echo "Secrets not available, creating temporary debug keystore"
           # The testkey.keystore will be used as fallback in build.gradle.kts
