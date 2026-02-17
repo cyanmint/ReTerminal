@@ -163,6 +163,18 @@ fun Settings(modifier: Modifier = Modifier,navController: NavController,mainActi
                 })
         }
 
+        // Common options for container modes
+        PreferenceGroup(heading = "Container Options") {
+            SettingsToggle(
+                label = "Use su (root)",
+                description = "Run container commands with root privileges (required for chroot)",
+                showSwitch = true,
+                default = Settings.use_su,
+                sideEffect = {
+                    Settings.use_su = it
+                })
+        }
+
         // Chroot options - only show when Chroot mode is selected
         if (selectedContainerMode == ContainerMode.CHROOT) {
             PreferenceGroup(heading = "Chroot Options") {

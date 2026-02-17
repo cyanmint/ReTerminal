@@ -51,6 +51,10 @@ object Settings {
         get() = Preference.getInt(key = "containerMode", default = ContainerMode.PROOT)
         set(value) = Preference.setInt(key = "containerMode",value)
 
+    var use_su
+        get() = Preference.getBoolean(key = "use_su", default = true)
+        set(value) = Preference.setBoolean(key = "use_su",value)
+
     var use_unshare
         get() = Preference.getBoolean(key = "use_unshare", default = true)
         set(value) = Preference.setBoolean(key = "use_unshare",value)
