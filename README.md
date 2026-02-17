@@ -80,7 +80,7 @@ To switch container modes, go to **Settings** → "Alpine Container mode" and se
 
 #### **Chroot Options**
 
-When using Chroot mode, you can configure two additional options:
+When using Chroot mode, you can configure three additional options:
 
 1. **Use unshare** (default: ON)
    - When enabled: Creates isolated namespaces (mount, PID, UTS, IPC) for better isolation
@@ -90,10 +90,21 @@ When using Chroot mode, you can configure two additional options:
    - When enabled: All terminal sessions share the same namespace (processes visible across sessions)
    - When disabled: Each session gets its own isolated namespace (processes not visible across sessions)
 
+3. **Ensure PID 1** (default: OFF, requires unshare to be ON)
+   - When enabled: Init process becomes PID 1 in the Alpine container
+   - Important for proper signal handling and orphan process reaping
+   - Required by some init systems (like systemd)
+   - Takes priority over "Share namespace" if both are enabled
+
 **Configuration examples:**
-- **Maximum isolation:** Unshare ON, Share namespace OFF (each session fully isolated)
-- **Shared environment:** Unshare ON, Share namespace ON (all sessions share processes/mounts)
-- **Minimal overhead:** Unshare OFF (basic chroot, no namespace isolation)
+- **Maximum isolation (default):** Unshare ON, Share namespace OFF, PID 1 OFF
+  - Each session fully isolated in its own namespace
+- **Shared environment:** Unshare ON, Share namespace ON, PID 1 OFF
+  - All sessions share processes/mounts, can interact with each other
+- **Proper init system:** Unshare ON, Share namespace OFF, PID 1 ON
+  - Init is PID 1, proper signal handling and zombie process reaping
+- **Minimal overhead:** Unshare OFF
+  - Basic chroot, no namespace isolation
 
 To configure these options, go to **Settings** → Select "Chroot" container mode → Configure "Chroot Options".
 
