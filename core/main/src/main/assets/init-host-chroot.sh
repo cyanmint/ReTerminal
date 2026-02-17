@@ -47,8 +47,12 @@ for system_mnt in /apex /odm /product /system /system_ext /vendor; do
 done
 
 # Use su to run commands with root privileges
-# unshare creates new namespaces (mount, PID, UTS, IPC)
-# chroot changes the root directory
+# Create new namespaces for isolation:
+#   -m: mount namespace (isolated filesystem mounts)
+#   -p: PID namespace (isolated process tree)
+#   -u: UTS namespace (isolated hostname)
+#   -i: IPC namespace (isolated inter-process communication)
+#   -f: fork before executing command (required for PID namespace)
 su -c "
     # Create new namespaces and set up container
     unshare -m -p -u -i -f sh -c '

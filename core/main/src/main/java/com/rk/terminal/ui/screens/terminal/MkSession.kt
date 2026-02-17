@@ -46,17 +46,18 @@ object MkSession {
             val containerMode = Settings.container_Mode
             val initScriptName = if (containerMode == ContainerMode.CHROOT) "init-host-chroot.sh" else "init-host.sh"
             val initFile: File = localBinDir().child("init-host")
+            val modeFile: File = localBinDir().child(".container-mode")
 
-            if (initFile.exists().not()){
+            // Check if we need to update the init script
+            val shouldUpdate = !initFile.exists() || 
+                              !modeFile.exists() || 
+                              modeFile.readText() != containerMode.toString()
+
+            if (shouldUpdate) {
                 initFile.createFileIfNot()
                 initFile.writeText(assets.open(initScriptName).bufferedReader().use { it.readText() })
-            } else {
-                // Update the init file if the container mode changed
-                val currentContent = initFile.readText()
-                val newContent = assets.open(initScriptName).bufferedReader().use { it.readText() }
-                if (currentContent != newContent) {
-                    initFile.writeText(newContent)
-                }
+                modeFile.createFileIfNot()
+                modeFile.writeText(containerMode.toString())
             }
 
 
