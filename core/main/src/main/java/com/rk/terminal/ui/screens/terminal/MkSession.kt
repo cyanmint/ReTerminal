@@ -42,22 +42,31 @@ object MkSession {
 
             val workingDir = pendingCommand?.workingDir ?: alpineHomeDir().path
 
-            // Determine which init script to use based on container mode
+            // Determine which init script to use based on container mode and settings
             val containerMode = Settings.container_Mode
-            val initScriptName = if (containerMode == ContainerMode.CHROOT) "init-host-chroot.sh" else "init-host.sh"
+            val initScriptName = when {
+                containerMode == ContainerMode.PROOT -> "init-host.sh"
+                containerMode == ContainerMode.CHROOT && !Settings.use_unshare -> "init-host-chroot-nons.sh"
+                containerMode == ContainerMode.CHROOT && Settings.use_unshare && Settings.share_namespace -> "init-host-chroot-shared.sh"
+                else -> "init-host-chroot.sh" // Default: chroot with unshare, isolated namespaces
+            }
+            
             val initFile: File = localBinDir().child("init-host")
             val modeFile: File = localBinDir().child(".container-mode")
+            
+            // Create a unique mode identifier that includes all relevant settings
+            val modeIdentifier = "$containerMode:${Settings.use_unshare}:${Settings.share_namespace}"
 
             // Check if we need to update the init script
             val shouldUpdate = !initFile.exists() || 
                               !modeFile.exists() || 
-                              modeFile.readText() != containerMode.toString()
+                              modeFile.readText() != modeIdentifier
 
             if (shouldUpdate) {
                 initFile.createFileIfNot()
                 initFile.writeText(assets.open(initScriptName).bufferedReader().use { it.readText() })
                 modeFile.createFileIfNot()
-                modeFile.writeText(containerMode.toString())
+                modeFile.writeText(modeIdentifier)
             }
 
 

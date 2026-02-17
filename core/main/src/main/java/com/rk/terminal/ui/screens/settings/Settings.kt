@@ -163,6 +163,36 @@ fun Settings(modifier: Modifier = Modifier,navController: NavController,mainActi
                 })
         }
 
+        // Chroot options - only show when Chroot mode is selected
+        if (selectedContainerMode == ContainerMode.CHROOT) {
+            PreferenceGroup(heading = "Chroot Options") {
+                SettingsToggle(
+                    label = "Use unshare",
+                    description = "Create isolated namespaces (mount, PID, UTS, IPC)",
+                    showSwitch = true,
+                    default = Settings.use_unshare,
+                    sideEffect = {
+                        Settings.use_unshare = it
+                        // If unshare is disabled, also disable namespace sharing
+                        if (!it) {
+                            Settings.share_namespace = false
+                        }
+                    })
+
+                // Only show namespace sharing option if unshare is enabled
+                if (Settings.use_unshare) {
+                    SettingsToggle(
+                        label = "Share namespace",
+                        description = "All sessions share the same namespace (requires unshare)",
+                        showSwitch = true,
+                        default = Settings.share_namespace,
+                        sideEffect = {
+                            Settings.share_namespace = it
+                        })
+                }
+            }
+        }
+
 
         PreferenceGroup {
             SettingsToggle(
