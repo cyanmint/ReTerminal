@@ -198,22 +198,21 @@ wait
         alpineDir: File,
         useSu: Boolean
     ): Array<String> {
-        // Create wrapper script for chroot execution
-        val scriptFile = createBasicChrootScript(alpineDir)
-        val scriptPath = scriptFile.absolutePath
+        val chrootPath = alpineDir.absolutePath
         
         return if (useSu) {
-            // Create a wrapper that calls su with the script
+            // For root mode, we need to use a wrapper script
             val suWrapper = File(localBinDir(), "su-wrapper-basic.sh")
             suWrapper.writeText("""#!/system/bin/sh
-echo "[DEBUG] Executing: su -c \"sh $scriptPath\"" >&2
-su -c "sh $scriptPath"
+echo "[DEBUG] Executing: su -c \"chroot $chrootPath /bin/sh -c 'cd /root && exec /bin/sh'\"" >&2
+exec su -c "chroot $chrootPath /bin/sh -c 'cd /root && exec /bin/sh'"
 """)
             suWrapper.setReadable(true, true)
             suWrapper.setWritable(true, true)
             arrayOf("sh", suWrapper.absolutePath)
         } else {
-            arrayOf("/system/bin/sh", scriptPath)
+            // Without su, execute chroot directly
+            arrayOf("chroot", chrootPath, "/bin/sh", "-c", "cd /root && exec /bin/sh")
         }
     }
     

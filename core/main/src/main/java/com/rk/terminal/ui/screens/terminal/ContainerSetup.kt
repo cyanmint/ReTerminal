@@ -51,7 +51,8 @@ object ContainerSetup {
             
             // Execute mount command
             val mountCmd = if (useSu) {
-                arrayOf("su", "-c", "mount --bind $source $target")
+                // Use array format to avoid quoting issues
+                arrayOf("su", "-c", "mount --bind \"$source\" \"$target\"")
             } else {
                 arrayOf("mount", "--bind", source, target)
             }
@@ -70,7 +71,7 @@ object ContainerSetup {
     fun setupProc(alpineDir: File, useSu: Boolean): Boolean {
         val procPath = "${alpineDir.absolutePath}/proc"
         val procCmd = if (useSu) {
-            arrayOf("su", "-c", "mount -t proc proc $procPath")
+            arrayOf("su", "-c", "mount -t proc proc \"$procPath\"")
         } else {
             arrayOf("mount", "-t", "proc", "proc", procPath)
         }
@@ -93,7 +94,7 @@ object ContainerSetup {
         
         for (mount in mounts) {
             val umountCmd = if (useSu) {
-                arrayOf("su", "-c", "umount $mount")
+                arrayOf("su", "-c", "umount \"$mount\"")
             } else {
                 arrayOf("umount", mount)
             }
