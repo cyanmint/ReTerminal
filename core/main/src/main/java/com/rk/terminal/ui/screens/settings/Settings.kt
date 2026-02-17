@@ -183,7 +183,7 @@ fun Settings(modifier: Modifier = Modifier,navController: NavController,mainActi
                 if (Settings.use_unshare) {
                     SettingsToggle(
                         label = "Share namespace",
-                        description = "All sessions share the same namespace (requires unshare)",
+                        description = "All sessions share the same namespace (can combine with PID 1)",
                         showSwitch = true,
                         default = Settings.share_namespace,
                         sideEffect = {
@@ -192,7 +192,7 @@ fun Settings(modifier: Modifier = Modifier,navController: NavController,mainActi
                     
                     SettingsToggle(
                         label = "Ensure PID 1",
-                        description = "Make init process PID 1 in Alpine (requires unshare)",
+                        description = "First session init becomes PID 1 (can combine with shared namespace)",
                         showSwitch = true,
                         default = Settings.ensure_pid_1,
                         sideEffect = {

@@ -47,6 +47,8 @@ object MkSession {
             val initScriptName = when {
                 containerMode == ContainerMode.PROOT -> "init-host.sh"
                 containerMode == ContainerMode.CHROOT && !Settings.use_unshare -> "init-host-chroot-nons.sh"
+                // Combined mode: PID 1 + Shared namespace (takes highest priority)
+                containerMode == ContainerMode.CHROOT && Settings.use_unshare && Settings.ensure_pid_1 && Settings.share_namespace -> "init-host-chroot-shared-pid1.sh"
                 containerMode == ContainerMode.CHROOT && Settings.use_unshare && Settings.ensure_pid_1 -> "init-host-chroot-pid1.sh"
                 containerMode == ContainerMode.CHROOT && Settings.use_unshare && Settings.share_namespace -> "init-host-chroot-shared.sh"
                 else -> "init-host-chroot.sh" // Default: chroot with unshare, isolated namespaces

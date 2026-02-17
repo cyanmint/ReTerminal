@@ -80,7 +80,7 @@ To switch container modes, go to **Settings** → "Alpine Container mode" and se
 
 #### **Chroot Options**
 
-When using Chroot mode, you can configure three additional options:
+When using Chroot mode, you can configure three additional options that can work independently or in combination:
 
 1. **Use unshare** (default: ON)
    - When enabled: Creates isolated namespaces (mount, PID, UTS, IPC) for better isolation
@@ -89,20 +89,25 @@ When using Chroot mode, you can configure three additional options:
 2. **Share namespace** (default: OFF, requires unshare to be ON)
    - When enabled: All terminal sessions share the same namespace (processes visible across sessions)
    - When disabled: Each session gets its own isolated namespace (processes not visible across sessions)
+   - **Can be combined with PID 1** for shared namespace with init daemon
 
 3. **Ensure PID 1** (default: OFF, requires unshare to be ON)
-   - When enabled: Init process becomes PID 1 in the Alpine container
+   - When enabled: First session's init process becomes PID 1 in the Alpine container
    - Important for proper signal handling and orphan process reaping
    - Required by some init systems (like systemd)
-   - Takes priority over "Share namespace" if both are enabled
+   - **Can be combined with shared namespace** for namespace daemon behavior
 
 **Configuration examples:**
 - **Maximum isolation (default):** Unshare ON, Share namespace OFF, PID 1 OFF
   - Each session fully isolated in its own namespace
 - **Shared environment:** Unshare ON, Share namespace ON, PID 1 OFF
   - All sessions share processes/mounts, can interact with each other
-- **Proper init system:** Unshare ON, Share namespace OFF, PID 1 ON
-  - Init is PID 1, proper signal handling and zombie process reaping
+- **Proper init system (isolated):** Unshare ON, Share namespace OFF, PID 1 ON
+  - Each session has init as PID 1, proper signal handling
+- **Shared namespace with init daemon:** Unshare ON, Share namespace ON, PID 1 ON ⭐
+  - First session creates shared namespace with init as PID 1 (daemon)
+  - Subsequent sessions join the namespace and see init as PID 1
+  - Best for persistent services and proper process management
 - **Minimal overhead:** Unshare OFF
   - Basic chroot, no namespace isolation
 
