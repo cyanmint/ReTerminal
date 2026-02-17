@@ -67,17 +67,35 @@ ReTerminal supports two modes for running the Alpine Linux container:
 - **How it works:** Uses PRoot to create a sandboxed environment without requiring system-level privileges
 - **Best for:** Regular users without root access
 
+To switch container modes, go to **Settings** → "Alpine Container mode" and select your preferred mode.
+
 ### **Chroot Mode**
 - **Requirements:** Root access (via su or Magisk)
-- **How it works:** Uses `chroot` and `unshare` to create isolated namespaces for the Alpine container
+- **How it works:** Uses `chroot` with optional namespace isolation for the Alpine container
 - **Benefits:** 
   - Better performance compared to PRoot
   - More native container experience
-  - Proper namespace isolation
+  - Configurable isolation levels
 - **How to enable:** Go to Settings → Alpine Container mode → Select "Chroot"
-- **Note:** New sessions will enter the corresponding namespace
 
-To switch between modes, go to **Settings** and select your preferred container mode under "Alpine Container mode".
+#### **Chroot Options**
+
+When using Chroot mode, you can configure two additional options:
+
+1. **Use unshare** (default: ON)
+   - When enabled: Creates isolated namespaces (mount, PID, UTS, IPC) for better isolation
+   - When disabled: Uses basic chroot without namespace isolation (lighter but less isolated)
+   
+2. **Share namespace** (default: OFF, requires unshare to be ON)
+   - When enabled: All terminal sessions share the same namespace (processes visible across sessions)
+   - When disabled: Each session gets its own isolated namespace (processes not visible across sessions)
+
+**Configuration examples:**
+- **Maximum isolation:** Unshare ON, Share namespace OFF (each session fully isolated)
+- **Shared environment:** Unshare ON, Share namespace ON (all sessions share processes/mounts)
+- **Minimal overhead:** Unshare OFF (basic chroot, no namespace isolation)
+
+To configure these options, go to **Settings** → Select "Chroot" container mode → Configure "Chroot Options".
 
 
 ## Found this app useful? :heart:

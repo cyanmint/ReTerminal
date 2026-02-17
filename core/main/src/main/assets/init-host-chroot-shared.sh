@@ -47,69 +47,6 @@ for system_mnt in /apex /odm /product /system /system_ext /vendor; do
     fi
 done
 
-# Function to set up mounts (must be done inside namespace)
-setup_mounts() {
-    # Mount proc for the PID namespace
-    mount -t proc proc "$ALPINE_DIR/proc" 2>/dev/null || true
-    
-    # Bind mount necessary directories
-    mount --bind /sdcard "$ALPINE_DIR/sdcard" 2>/dev/null || true
-    mount --bind /storage "$ALPINE_DIR/storage" 2>/dev/null || true
-    mount --bind /dev "$ALPINE_DIR/dev" 2>/dev/null || true
-    mount --bind /sys "$ALPINE_DIR/sys" 2>/dev/null || true
-    mount --bind "$PREFIX" "$ALPINE_DIR$PREFIX" 2>/dev/null || true
-    mount --bind "$PREFIX/local/stat" "$ALPINE_DIR/proc/stat" 2>/dev/null || true
-    mount --bind "$PREFIX/local/vmstat" "$ALPINE_DIR/proc/vmstat" 2>/dev/null || true
-    
-    # Bind mount /dev/shm
-    mount --bind "$PREFIX/local/alpine/tmp" "$ALPINE_DIR/dev/shm" 2>/dev/null || true
-    
-    # Bind mount system directories
-    for system_mnt in /apex /odm /product /system /system_ext /vendor; do
-        if [ -e "$system_mnt" ]; then
-            mount --bind "$system_mnt" "$ALPINE_DIR$system_mnt" 2>/dev/null || true
-        fi
-    done
-    
-    # Bind mount linkerconfig if present
-    if [ -e /linkerconfig/ld.config.txt ]; then
-        mount --bind /linkerconfig/ld.config.txt "$ALPINE_DIR/linkerconfig/ld.config.txt" 2>/dev/null || true
-    fi
-    
-    if [ -e /linkerconfig/com.android.art/ld.config.txt ]; then
-        mount --bind /linkerconfig/com.android.art/ld.config.txt "$ALPINE_DIR/linkerconfig/com.android.art/ld.config.txt" 2>/dev/null || true
-    fi
-    
-    # Bind mount property contexts
-    if [ -e /plat_property_contexts ]; then
-        mount --bind /plat_property_contexts "$ALPINE_DIR/plat_property_contexts" 2>/dev/null || true
-    fi
-    
-    if [ -e /property_contexts ]; then
-        mount --bind /property_contexts "$ALPINE_DIR/property_contexts" 2>/dev/null || true
-    fi
-    
-    # Bind mount /dev/random
-    mount --bind /dev/urandom "$ALPINE_DIR/dev/random" 2>/dev/null || true
-    
-    # Set up /dev/fd, stdin, stdout, stderr
-    if [ -e /proc/self/fd ]; then
-        mount --bind /proc/self/fd "$ALPINE_DIR/dev/fd" 2>/dev/null || true
-    fi
-    
-    if [ -e /proc/self/fd/0 ]; then
-        mount --bind /proc/self/fd/0 "$ALPINE_DIR/dev/stdin" 2>/dev/null || true
-    fi
-    
-    if [ -e /proc/self/fd/1 ]; then
-        mount --bind /proc/self/fd/1 "$ALPINE_DIR/dev/stdout" 2>/dev/null || true
-    fi
-    
-    if [ -e /proc/self/fd/2 ]; then
-        mount --bind /proc/self/fd/2 "$ALPINE_DIR/dev/stderr" 2>/dev/null || true
-    fi
-}
-
 # Check if namespace already exists and is valid
 NS_EXISTS=0
 if [ -f "$NAMESPACE_PID_FILE" ]; then
@@ -136,9 +73,56 @@ else
             # Save PID to file for future sessions
             echo \$\$ > \"$NAMESPACE_PID_FILE\"
             
-            # Set up all mounts
-            $(declare -f setup_mounts)
-            setup_mounts
+            # Set up all mounts inline
+            mount -t proc proc \"$ALPINE_DIR/proc\" 2>/dev/null || true
+            mount --bind /sdcard \"$ALPINE_DIR/sdcard\" 2>/dev/null || true
+            mount --bind /storage \"$ALPINE_DIR/storage\" 2>/dev/null || true
+            mount --bind /dev \"$ALPINE_DIR/dev\" 2>/dev/null || true
+            mount --bind /sys \"$ALPINE_DIR/sys\" 2>/dev/null || true
+            mount --bind \"$PREFIX\" \"$ALPINE_DIR$PREFIX\" 2>/dev/null || true
+            mount --bind \"$PREFIX/local/stat\" \"$ALPINE_DIR/proc/stat\" 2>/dev/null || true
+            mount --bind \"$PREFIX/local/vmstat\" \"$ALPINE_DIR/proc/vmstat\" 2>/dev/null || true
+            mount --bind \"$PREFIX/local/alpine/tmp\" \"$ALPINE_DIR/dev/shm\" 2>/dev/null || true
+            
+            for system_mnt in /apex /odm /product /system /system_ext /vendor; do
+                if [ -e \"\$system_mnt\" ]; then
+                    mount --bind \"\$system_mnt\" \"$ALPINE_DIR\$system_mnt\" 2>/dev/null || true
+                fi
+            done
+            
+            if [ -e /linkerconfig/ld.config.txt ]; then
+                mount --bind /linkerconfig/ld.config.txt \"$ALPINE_DIR/linkerconfig/ld.config.txt\" 2>/dev/null || true
+            fi
+            
+            if [ -e /linkerconfig/com.android.art/ld.config.txt ]; then
+                mount --bind /linkerconfig/com.android.art/ld.config.txt \"$ALPINE_DIR/linkerconfig/com.android.art/ld.config.txt\" 2>/dev/null || true
+            fi
+            
+            if [ -e /plat_property_contexts ]; then
+                mount --bind /plat_property_contexts \"$ALPINE_DIR/plat_property_contexts\" 2>/dev/null || true
+            fi
+            
+            if [ -e /property_contexts ]; then
+                mount --bind /property_contexts \"$ALPINE_DIR/property_contexts\" 2>/dev/null || true
+            fi
+            
+            mount --bind /dev/urandom \"$ALPINE_DIR/dev/random\" 2>/dev/null || true
+            
+            if [ -e /proc/self/fd ]; then
+                mount --bind /proc/self/fd \"$ALPINE_DIR/dev/fd\" 2>/dev/null || true
+            fi
+            
+            if [ -e /proc/self/fd/0 ]; then
+                mount --bind /proc/self/fd/0 \"$ALPINE_DIR/dev/stdin\" 2>/dev/null || true
+            fi
+            
+            if [ -e /proc/self/fd/1 ]; then
+                mount --bind /proc/self/fd/1 \"$ALPINE_DIR/dev/stdout\" 2>/dev/null || true
+            fi
+            
+            if [ -e /proc/self/fd/2 ]; then
+                mount --bind /proc/self/fd/2 \"$ALPINE_DIR/dev/stderr\" 2>/dev/null || true
+            fi
             
             # Start a background sleep to keep namespace alive
             ( while true; do sleep 3600; done ) &
