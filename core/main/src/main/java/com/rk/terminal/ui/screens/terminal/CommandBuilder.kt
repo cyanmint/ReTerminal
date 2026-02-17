@@ -146,6 +146,17 @@ wait
         prefix: String
     ): Array<String> {
         val prootPath = File(nativeLibDir, "libproot.so").absolutePath
+        val prootBinPath = File(localBinDir(), "proot").absolutePath
+        
+        // Copy libproot.so to local bin directory if it doesn't exist
+        val prootSrc = File(prootPath)
+        val prootDest = File(prootBinPath)
+        if (!prootDest.exists() || prootDest.length() != prootSrc.length()) {
+            prootSrc.copyTo(prootDest, overwrite = true)
+            prootDest.setExecutable(true)
+            prootDest.setReadable(true)
+            prootDest.setWritable(true)
+        }
         
         // Determine which linker to use (64-bit or 32-bit)
         val linker = if (File("/system/bin/linker64").exists()) {
@@ -156,7 +167,7 @@ wait
         
         return arrayOf(
             linker,
-            prootPath,
+            prootBinPath,
             "-r", alpineDir.absolutePath,
             "-b", "/sdcard:/sdcard",
             "-b", "/storage:/storage",
