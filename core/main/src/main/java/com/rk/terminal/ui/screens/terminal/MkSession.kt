@@ -42,36 +42,6 @@ object MkSession {
 
             val workingDir = pendingCommand?.workingDir ?: alpineHomeDir().path
 
-            // Use unified init-host script with arguments
-            val containerMode = Settings.container_Mode
-            
-            val initFile: File = localBinDir().child("init-host")
-            
-            // Always use the unified script
-            val initScriptName = "init-host.sh"
-            
-            // Check if we need to update the init script
-            // Update if file doesn't exist or is different
-            val shouldUpdate = !initFile.exists() || run {
-                val currentContent = assets.open(initScriptName).bufferedReader().use { it.readText() }
-                val existingContent = if (initFile.exists()) initFile.readText() else ""
-                currentContent != existingContent
-            }
-
-            if (shouldUpdate) {
-                initFile.createFileIfNot()
-                initFile.writeText(assets.open(initScriptName).bufferedReader().use { it.readText() })
-                initFile.setExecutable(true, false)
-            }
-
-
-            localBinDir().child("init").apply {
-                if (exists().not()){
-                    createFileIfNot()
-                    writeText(assets.open("init.sh").bufferedReader().use { it.readText() })
-                }
-            }
-
 
             val env = mutableListOf(
                 "PATH=${System.getenv("PATH")}:/sbin:${localBinDir().absolutePath}",
@@ -127,26 +97,32 @@ object MkSession {
             }
 
             val args: Array<String>
+            val shell: String
 
-            val shell = if (pendingCommand == null) {
-                args = if (workingMode == WorkingMode.ALPINE){
-                    // Build arguments for unified init-host script
-                    val mode = if (containerMode == ContainerMode.PROOT) "proot" else "chroot"
-                    val unshare = if (Settings.use_unshare) "yes" else "no"
-                    val sharedNs = if (Settings.share_namespace) "yes" else "no"
-                    val useSu = if (Settings.use_su) "yes" else "no"
-                    
-                    arrayOf(
-                        "-c",
-                        "${initFile.absolutePath} --mode=$mode --unshare=$unshare --shared-ns=$sharedNs --use-su=$useSu"
+            if (pendingCommand == null) {
+                if (workingMode == WorkingMode.ALPINE) {
+                    // Build command array directly without scripts
+                    val commandArray = CommandBuilder.buildCommand(
+                        containerMode = Settings.container_Mode,
+                        useUnshare = Settings.use_unshare,
+                        shareNamespace = Settings.share_namespace,
+                        useSu = Settings.use_su,
+                        alpineDir = alpineDir(),
+                        nativeLibDir = applicationInfo.nativeLibraryDir,
+                        prefix = filesDir.parentFile!!.path
                     )
-                }else{
-                    arrayOf()
+                    
+                    // First element is the shell/command to execute
+                    shell = commandArray[0]
+                    // Rest are the arguments
+                    args = commandArray.sliceArray(1 until commandArray.size)
+                } else {
+                    shell = "/system/bin/sh"
+                    args = arrayOf()
                 }
-                "/system/bin/sh"
-            } else{
+            } else {
+                shell = pendingCommand!!.shell
                 args = pendingCommand!!.args
-                pendingCommand!!.shell
             }
 
             pendingCommand = null
