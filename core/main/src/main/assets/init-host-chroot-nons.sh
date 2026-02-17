@@ -46,15 +46,18 @@ for system_mnt in /apex /odm /product /system /system_ext /vendor; do
     fi
 done
 
-# Determine if we should use su based on USE_SU environment variable
-USE_SU_CMD=""
-if [ "$USE_SU" != "0" ]; then
-    USE_SU_CMD="su -c"
-fi
+# Helper function to execute commands with or without su
+run_cmd() {
+    if [ "$USE_SU" != "0" ]; then
+        su -c "$1"
+    else
+        sh -c "$1"
+    fi
+}
 
 # Use chroot without creating new namespaces
 # This provides basic chroot isolation without namespace separation
-$USE_SU_CMD "
+run_cmd "
     # Mount proc
     mount -t proc proc \"$ALPINE_DIR/proc\" 2>/dev/null || true
     

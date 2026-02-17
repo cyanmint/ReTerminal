@@ -48,11 +48,14 @@ for system_mnt in /apex /odm /product /system /system_ext /vendor; do
     fi
 done
 
-# Determine if we should use su based on USE_SU environment variable
-USE_SU_CMD=""
-if [ "$USE_SU" != "0" ]; then
-    USE_SU_CMD="su -c"
-fi
+# Helper function to execute commands with or without su
+run_cmd() {
+    if [ "$USE_SU" != "0" ]; then
+        su -c "$1"
+    else
+        sh -c "$1"
+    fi
+}
 
 # Check if namespace already exists and is valid
 NS_EXISTS=0
@@ -60,7 +63,7 @@ if [ -f "$NAMESPACE_PID_FILE" ]; then
     NS_PID=$(cat "$NAMESPACE_PID_FILE" 2>/dev/null)
     if [ -n "$NS_PID" ]; then
         # Check if the process still exists
-        if $USE_SU_CMD "kill -0 $NS_PID 2>/dev/null"; then
+        if run_cmd "kill -0 $NS_PID 2>/dev/null"; then
             NS_EXISTS=1
         else
             # Process is dead, remove stale PID file
@@ -72,11 +75,11 @@ fi
 if [ "$NS_EXISTS" = "1" ]; then
     # Namespace exists, enter it using nsenter (subsequent sessions)
     # Pass NSENTER_MODE=1 to signal that we're joining an existing namespace
-    $USE_SU_CMD "NSENTER_MODE=1 nsenter -t $NS_PID -m -p -u -i chroot \"$ALPINE_DIR\" /bin/sh \"$PREFIX/local/bin/init\" \"\$@\""
+    run_cmd "NSENTER_MODE=1 nsenter -t $NS_PID -m -p -u -i chroot \"$ALPINE_DIR\" /bin/sh \"$PREFIX/local/bin/init\" \"\$@\""
 else
     # Create new namespace with init as PID 1 (first session)
     # -a: all supported namespaces, -f: fork
-    $USE_SU_CMD "
+    run_cmd "
         unshare -a -f sh -c '
             # Mount proc filesystem (required for PID namespace, init becomes PID 1)
             mount -t proc proc \"$ALPINE_DIR/proc\" 2>/dev/null || true
@@ -147,8 +150,10 @@ else
     # Pass NSENTER_MODE=1 since we're entering via nsenter
     if [ -f "$NAMESPACE_PID_FILE" ]; then
         NS_PID=$(cat "$NAMESPACE_PID_FILE" 2>/dev/null)
-        if [ -n "$NS_PID" ] && $USE_SU_CMD "kill -0 $NS_PID 2>/dev/null"; then
-            $USE_SU_CMD "NSENTER_MODE=1 nsenter -t $NS_PID -m -p -u -i chroot \"$ALPINE_DIR\" /bin/sh \"$PREFIX/local/bin/init\" \"\$@\""
+        if [ -n "$NS_PID" ]; then
+            if run_cmd "kill -0 $NS_PID 2>/dev/null"; then
+                run_cmd "NSENTER_MODE=1 nsenter -t $NS_PID -m -p -u -i chroot \"$ALPINE_DIR\" /bin/sh \"$PREFIX/local/bin/init\" \"\$@\""
+            fi
         fi
     fi
 fi

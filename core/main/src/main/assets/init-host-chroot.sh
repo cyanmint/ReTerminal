@@ -46,16 +46,19 @@ for system_mnt in /apex /odm /product /system /system_ext /vendor; do
     fi
 done
 
-# Determine if we should use su based on USE_SU environment variable
-USE_SU_CMD=""
-if [ "$USE_SU" != "0" ]; then
-    USE_SU_CMD="su -c"
-fi
+# Helper function to execute commands with or without su
+run_cmd() {
+    if [ "$USE_SU" != "0" ]; then
+        su -c "$1"
+    else
+        sh -c "$1"
+    fi
+}
 
 # Create new namespaces with init as PID 1:
 #   -a: all supported namespaces (mount, PID, UTS, IPC, and more if available)
 #   -f: fork before executing command (required for PID namespace)
-$USE_SU_CMD "
+run_cmd "
     # Create new namespaces with proper PID namespace
     unshare -a -f sh -c '
         # Mount proc filesystem (required for PID namespace)
