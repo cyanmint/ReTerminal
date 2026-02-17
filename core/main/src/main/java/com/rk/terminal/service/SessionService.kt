@@ -18,6 +18,9 @@ import com.rk.terminal.ui.screens.settings.Settings
 import com.rk.terminal.ui.screens.terminal.MkSession
 import com.termux.terminal.TerminalSession
 import com.termux.terminal.TerminalSessionClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class SessionService : Service() {
     private val sessions = hashMapOf<String, TerminalSession>()
@@ -41,6 +44,17 @@ class SessionService : Service() {
                 sessions[id] = it
                 sessionList[id] = workingMode
                 updateNotification()
+                
+                // Notify namespace daemon if in shared namespace mode
+                if (com.rk.settings.Settings.container_Mode == com.rk.terminal.ui.screens.settings.ContainerMode.CHROOT &&
+                    com.rk.settings.Settings.use_unshare &&
+                    com.rk.settings.Settings.share_namespace) {
+                    // Launch coroutine to register session
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val prefix = System.getenv("PREFIX") ?: "/data/data/${activity.packageName}/files/usr"
+                        NamespaceSessionDaemon.registerSession(prefix)
+                    }
+                }
             }
         }
         fun getSession(id: String): TerminalSession? {
@@ -57,6 +71,17 @@ class SessionService : Service() {
 
                 sessions.remove(id)
                 sessionList.remove(id)
+                
+                // Notify namespace daemon
+                if (com.rk.settings.Settings.container_Mode == com.rk.terminal.ui.screens.settings.ContainerMode.CHROOT &&
+                    com.rk.settings.Settings.use_unshare &&
+                    com.rk.settings.Settings.share_namespace) {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val prefix = System.getenv("PREFIX") ?: "/data/data/${this@SessionService.packageName}/files/usr"
+                        NamespaceSessionDaemon.unregisterSession(prefix)
+                    }
+                }
+                
                 if (sessions.isEmpty()) {
                     stopSelf()
                 } else {
@@ -78,6 +103,12 @@ class SessionService : Service() {
 
     override fun onDestroy() {
         sessions.forEach { s -> s.value.finishIfRunning() }
+        
+        // Shutdown namespace daemon
+        CoroutineScope(Dispatchers.IO).launch {
+            NamespaceSessionDaemon.shutdown()
+        }
+        
         super.onDestroy()
     }
 
