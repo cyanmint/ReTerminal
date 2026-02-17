@@ -158,6 +158,7 @@ fun Settings(modifier: Modifier = Modifier,navController: NavController,mainActi
         }
 
         // Chroot namespace settings - always visible for configuration
+        // These settings apply only to sessions created with CHROOT working mode
         var selectedUnshareMode by remember { mutableIntStateOf(Settings.unshare_mode) }
         
         PreferenceGroup(heading = "Chroot Namespace Mode") {
