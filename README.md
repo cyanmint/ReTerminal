@@ -8,6 +8,8 @@ Download the latest APK from the [Releases Section](https://github.com/RohitKush
 - [x] Virtual Keys
 - [x] Multiple Sessions
 - [x] Alpine Linux support
+  - [x] PRoot mode (rootless)
+  - [x] Chroot mode (requires root)
 
 # Screenshots
 <div>
@@ -53,6 +55,29 @@ This bypasses the need for execute permissions since the script is interpreted b
 
 ### **Option 3: Use Shizuku for Full Shell Access (Recommended)**
 If you have **Shizuku** installed, you can gain shell access to `/data/local/tmp`, which has executable permissions. This is the easiest way to run binaries without restrictions.
+
+---
+
+## Alpine Container Modes
+
+ReTerminal supports two modes for running the Alpine Linux container:
+
+### **PRoot Mode (Default)**
+- **Requirements:** No root access needed
+- **How it works:** Uses PRoot to create a sandboxed environment without requiring system-level privileges
+- **Best for:** Regular users without root access
+
+### **Chroot Mode**
+- **Requirements:** Root access (via su or Magisk)
+- **How it works:** Uses `chroot` and `unshare` to create isolated namespaces for the Alpine container
+- **Benefits:** 
+  - Better performance compared to PRoot
+  - More native container experience
+  - Proper namespace isolation
+- **How to enable:** Go to Settings → Alpine Container mode → Select "Chroot"
+- **Note:** New sessions will enter the corresponding namespace
+
+To switch between modes, go to **Settings** and select your preferred container mode under "Alpine Container mode".
 
 
 ## Found this app useful? :heart:
