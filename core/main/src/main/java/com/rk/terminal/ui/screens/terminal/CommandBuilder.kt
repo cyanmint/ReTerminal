@@ -38,10 +38,9 @@ mount --bind /vendor "${'$'}ALPINE_DIR/vendor" 2>/dev/null || true
 exec chroot "${'$'}ALPINE_DIR" /sbin/init
 """
         scriptFile.writeText(scriptContent)
-        // Set owner-only permissions (read/write/execute for owner only)
+        // Set owner-only read/write permissions (no execute needed since we use sh script.sh)
         scriptFile.setReadable(true, true)
         scriptFile.setWritable(true, true)
-        scriptFile.setExecutable(true, true)
         return scriptFile
     }
     
@@ -74,10 +73,9 @@ mount --bind /vendor "${'$'}ALPINE_DIR/vendor" 2>/dev/null || true
 wait
 """
         scriptFile.writeText(scriptContent)
-        // Set owner-only permissions (read/write/execute for owner only)
+        // Set owner-only read/write permissions (no execute needed since we use sh script.sh)
         scriptFile.setReadable(true, true)
         scriptFile.setWritable(true, true)
-        scriptFile.setExecutable(true, true)
         return scriptFile
     }
     
