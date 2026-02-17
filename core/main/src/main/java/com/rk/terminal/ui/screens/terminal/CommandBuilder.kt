@@ -57,16 +57,16 @@ object CommandBuilder {
         val mountCommands = buildMountCommands(alpineDir)
         val chrootCmd = "chroot ${alpineDir.absolutePath} /bin/sh -c 'cd /root && exec /bin/sh'"
         
-        val fullCommand = if (mountCommands.isNotEmpty()) {
+        val shellCommand = if (mountCommands.isNotEmpty()) {
             "$mountCommands && $chrootCmd"
         } else {
             chrootCmd
         }
         
         return if (useSu) {
-            arrayOf("su", "-c", fullCommand)
+            arrayOf("su", "-c", "sh -c \"$shellCommand\"")
         } else {
-            arrayOf("sh", "-c", fullCommand)
+            arrayOf("sh", "-c", shellCommand)
         }
     }
     
@@ -83,12 +83,12 @@ object CommandBuilder {
         // Use /sbin/init when unsharing to make it PID 1
         val chrootCmd = "chroot ${alpineDir.absolutePath} /sbin/init"
         
-        val unshareCmd = "unshare -a -f sh -c '$procMount && $mountCommands && exec $chrootCmd'"
+        val shellCommand = "unshare -a -f sh -c '$procMount && $mountCommands && exec $chrootCmd'"
         
         return if (useSu) {
-            arrayOf("su", "-c", unshareCmd)
+            arrayOf("su", "-c", "sh -c \"$shellCommand\"")
         } else {
-            arrayOf("sh", "-c", unshareCmd)
+            arrayOf("sh", "-c", shellCommand)
         }
     }
     
