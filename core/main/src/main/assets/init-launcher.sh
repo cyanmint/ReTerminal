@@ -1,11 +1,11 @@
 #!/system/bin/sh
 # Unified launcher script for Alpine Linux container modes
-# Usage: init-launcher.sh <mode> <unshare_mode> <debug_output> <seccomp> <use_su> [args...]
-#   mode: proot|chroot
-#   unshare_mode: 0=OWN_NS, 1=FIRST_ONLY, 2=NO_UNSHARE (only for chroot)
-#   debug_output: 0|1 (enable set -x)
-#   seccomp: 0|1 (seccomp flag for compatibility)
-#   use_su: 0|1 (attempt to use su for privilege escalation)
+# Usage: init-launcher.sh [mode] [unshare_mode] [debug_output] [seccomp] [use_su] [args...]
+#   mode: proot|chroot (default: proot)
+#   unshare_mode: 0=OWN_NS, 1=FIRST_ONLY, 2=NO_UNSHARE (default: 1, only used in chroot)
+#   debug_output: 0|1 (default: 0, enable set -x)
+#   seccomp: 0|1 (default: 0, seccomp flag for compatibility)
+#   use_su: 0|1 (default: 0, attempt to use su for privilege escalation)
 
 MODE="${1:-proot}"
 UNSHARE_MODE="${2:-1}"
@@ -13,18 +13,8 @@ DEBUG_OUTPUT="${3:-0}"
 SECCOMP="${4:-0}"
 USE_SU="${5:-0}"
 
-# Shift all our arguments
-if [ $# -ge 5 ]; then
-    shift 5
-elif [ $# -ge 4 ]; then
-    shift 4
-elif [ $# -ge 3 ]; then
-    shift 3
-elif [ $# -ge 2 ]; then
-    shift 2
-elif [ $# -ge 1 ]; then
-    shift 1
-fi
+# Shift arguments - remove up to 5 consumed args
+[ $# -gt 5 ] && shift 5 || shift $#
 
 # Enable debug output if requested via argument
 [ "$DEBUG_OUTPUT" = "1" ] && set -x
@@ -236,12 +226,14 @@ EOFSCRIPT
         
     *)
         echo "Unknown mode: $MODE"
-        echo "Usage: $0 <mode> <unshare_mode> <debug_output> <seccomp> <use_su> [args...]"
-        echo "  mode: proot|chroot"
-        echo "  unshare_mode: 0=OWN_NS, 1=FIRST_ONLY (default), 2=NO_UNSHARE"
-        echo "  debug_output: 0|1 (enable set -x)"
-        echo "  seccomp: 0|1 (seccomp flag)"
-        echo "  use_su: 0|1 (attempt privilege escalation)"
+        echo "Usage: $0 [mode] [unshare_mode] [debug_output] [seccomp] [use_su] [args...]"
+        echo "  mode: proot|chroot (default: proot)"
+        echo "  unshare_mode: 0=OWN_NS, 1=FIRST_ONLY, 2=NO_UNSHARE (default: 1)"
+        echo "  debug_output: 0|1 (default: 0, enable set -x)"
+        echo "  seccomp: 0|1 (default: 0)"
+        echo "  use_su: 0|1 (default: 0, attempt privilege escalation)"
+        echo ""
+        echo "Note: All parameters are optional with sensible defaults."
         exit 1
         ;;
 esac

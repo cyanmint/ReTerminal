@@ -132,7 +132,7 @@ object MkSession {
                     WorkingMode.ALPINE -> arrayOf(
                         launcherFile.absolutePath,
                         "proot",
-                        "1",  // unshare_mode (not used in proot, but required arg)
+                        "1",  // unshare_mode (unused in proot, but keeps arg order consistent)
                         debugFlag,
                         seccompFlag,
                         useSuFlag
