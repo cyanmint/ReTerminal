@@ -1,5 +1,8 @@
 set -e  # Exit immediately on Failure
 
+# Enable debug output if DEBUG_OUTPUT is set
+[ "$DEBUG_OUTPUT" = "1" ] && set -x
+
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/share/bin:/usr/share/sbin:/usr/local/bin:/usr/local/sbin:/system/bin:/system/xbin
 export HOME=/root
 
@@ -38,7 +41,7 @@ if [ "$#" -eq 0 ]; then
     source /etc/profile
     export PS1="\[\e[38;5;46m\]\u\[\033[39m\]@reterm \[\033[39m\]\w \[\033[0m\]\\$ "
     cd $HOME
-    /bin/ash
+    exec /bin/ash
 else
     exec "$@"
 fi

@@ -41,14 +41,26 @@ object MkSession {
 
             val workingDir = pendingCommand?.workingDir ?: alpineHomeDir().path
 
-            val initFile: File = localBinDir().child("init-host")
-
-            if (initFile.exists().not()){
-                initFile.createFileIfNot()
-                initFile.writeText(assets.open("init-host.sh").bufferedReader().use { it.readText() })
+            // Create unified launcher script
+            val launcherFile: File = localBinDir().child("init-launcher")
+            
+            // Check if custom script is configured
+            val customScriptPath = com.rk.settings.Settings.custom_script_path
+            if (customScriptPath.isNotEmpty() && File(customScriptPath).exists()) {
+                // Use custom script
+                if (launcherFile.exists().not() || File(customScriptPath).lastModified() > launcherFile.lastModified()) {
+                    launcherFile.createFileIfNot()
+                    File(customScriptPath).copyTo(launcherFile, overwrite = true)
+                }
+            } else {
+                // Use default launcher script
+                if (launcherFile.exists().not()) {
+                    launcherFile.createFileIfNot()
+                    launcherFile.writeText(assets.open("init-launcher.sh").bufferedReader().use { it.readText() })
+                }
             }
 
-
+            // Keep init.sh for container entrypoint
             localBinDir().child("init").apply {
                 if (exists().not()){
                     createFileIfNot()
@@ -85,9 +97,7 @@ object MkSession {
                 env.add("PROOT_LOADER=${applicationInfo.nativeLibraryDir}/libproot-loader.so")
             }
 
-            if (Settings.seccomp) {
-                env.add("SECCOMP=1")
-            }
+            // Note: debug_output and seccomp are now passed as arguments to init-launcher.sh, not as env vars
 
 
 
@@ -113,10 +123,29 @@ object MkSession {
             val args: Array<String>
 
             val shell = if (pendingCommand == null) {
-                args = if (workingMode == WorkingMode.ALPINE){
-                    arrayOf("-c",initFile.absolutePath)
-                }else{
-                    arrayOf()
+                // Convert boolean settings to 0/1 for arguments
+                val debugFlag = if (com.rk.settings.Settings.debug_output) "1" else "0"
+                val seccompFlag = if (Settings.seccomp) "1" else "0"
+                val useSuFlag = if (com.rk.settings.Settings.use_su) "1" else "0"
+                
+                args = when (workingMode) {
+                    WorkingMode.ALPINE -> arrayOf(
+                        launcherFile.absolutePath,
+                        "proot",
+                        "1",  // unshare_mode (unused in proot, but keeps arg order consistent)
+                        debugFlag,
+                        seccompFlag,
+                        useSuFlag
+                    )
+                    WorkingMode.CHROOT -> arrayOf(
+                        launcherFile.absolutePath,
+                        "chroot",
+                        com.rk.settings.Settings.unshare_mode.toString(),
+                        debugFlag,
+                        seccompFlag,
+                        useSuFlag
+                    )
+                    else -> arrayOf()
                 }
                 "/system/bin/sh"
             } else{

@@ -46,6 +46,10 @@ object Settings {
         get() = Preference.getInt(key = "workingMode", default = WorkingMode.ALPINE)
         set(value) = Preference.setInt(key = "workingMode",value)
 
+    var unshare_mode
+        get() = Preference.getInt(key = "unshareMode", default = 1) // Default to UnshareMode.FIRST_ONLY
+        set(value) = Preference.setInt(key = "unshareMode",value)
+
     var custom_background_name
         get() = Preference.getString(key = "custom_bg_name", default = "No Image Selected")
         set(value) = Preference.setString(key = "custom_bg_name",value)
@@ -88,6 +92,18 @@ object Settings {
     var hide_soft_keyboard_if_hwd
         get() = Preference.getBoolean(key = "force_soft_keyboard", default = true)
         set(value) = Preference.setBoolean(key = "force_soft_keyboard",value)
+
+    var debug_output
+        get() = Preference.getBoolean(key = "debug_output", default = false)
+        set(value) = Preference.setBoolean(key = "debug_output", value)
+
+    var use_su
+        get() = Preference.getBoolean(key = "use_su", default = false)
+        set(value) = Preference.setBoolean(key = "use_su", value)
+
+    var custom_script_path
+        get() = Preference.getString(key = "custom_script_path", default = "")
+        set(value) = Preference.setString(key = "custom_script_path", value)
 
 
 

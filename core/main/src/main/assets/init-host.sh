@@ -1,3 +1,8 @@
+#!/system/bin/sh
+
+# Enable debug output if DEBUG_OUTPUT is set
+[ "$DEBUG_OUTPUT" = "1" ] && set -x
+
 ALPINE_DIR=$PREFIX/local/alpine
 
 mkdir -p $ALPINE_DIR
@@ -71,4 +76,4 @@ ARGS="$ARGS --link2symlink"
 ARGS="$ARGS --sysvipc"
 ARGS="$ARGS -L"
 
-$LINKER $PREFIX/local/bin/proot $ARGS sh $PREFIX/local/bin/init "$@"
+exec $LINKER $PREFIX/local/bin/proot $ARGS sh $PREFIX/local/bin/init "$@"

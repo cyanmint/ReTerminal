@@ -14,7 +14,7 @@ import androidx.core.app.NotificationCompat
 import com.rk.resources.drawables
 import com.rk.resources.strings
 import com.rk.terminal.ui.activities.terminal.MainActivity
-import com.rk.terminal.ui.screens.settings.Settings
+import com.rk.terminal.ui.screens.settings.WorkingMode
 import com.rk.terminal.ui.screens.terminal.MkSession
 import com.termux.terminal.TerminalSession
 import com.termux.terminal.TerminalSessionClient
@@ -34,12 +34,19 @@ class SessionService : Service() {
             }
             sessions.clear()
             sessionList.clear()
+            NamespaceManager.clear()
             updateNotification()
         }
         fun createSession(id: String, client: TerminalSessionClient, activity: MainActivity,workingMode:Int): TerminalSession {
             return MkSession.createSession(activity, client, id, workingMode = workingMode).also {
                 sessions[id] = it
                 sessionList[id] = workingMode
+                
+                // Track namespace session for CHROOT mode
+                if (workingMode == WorkingMode.CHROOT) {
+                    NamespaceManager.registerNamespace(id)
+                }
+                
                 updateNotification()
             }
         }
@@ -57,6 +64,10 @@ class SessionService : Service() {
 
                 sessions.remove(id)
                 sessionList.remove(id)
+                
+                // Unregister namespace if it was tracked
+                NamespaceManager.unregisterNamespace(id)
+                
                 if (sessions.isEmpty()) {
                     stopSelf()
                 } else {
