@@ -95,7 +95,7 @@ object Settings {
 
     var debug_output
         get() = Preference.getBoolean(key = "debug_output", default = false)
-        set(value) = Preference.setBoolean(key = "debug_output",value)
+        set(value) = Preference.setBoolean(key = "debug_output", value)
 
 
 
