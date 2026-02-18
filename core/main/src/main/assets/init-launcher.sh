@@ -1,12 +1,13 @@
 #!/system/bin/sh
 # Unified launcher script for Alpine Linux container modes
-# Usage: init-launcher.sh [proot|chroot]
+# Usage: init-launcher.sh [proot|chroot] [unshare_mode]
 
 # Enable debug output if DEBUG_OUTPUT is set
 [ "$DEBUG_OUTPUT" = "1" ] && set -x
 
 MODE="${1:-proot}"
-shift
+UNSHARE_MODE="${2:-1}"
+shift 2
 
 # Common setup
 ALPINE_DIR=$PREFIX/local/alpine
@@ -92,8 +93,8 @@ case "$MODE" in
     chroot)
         set -e
         
-        # Determine unshare mode: 0=OWN_NS, 1=FIRST_ONLY, 2=NO_UNSHARE
-        UNSHARE_MODE=${UNSHARE_MODE:-1}
+        # Unshare mode passed as argument: 0=OWN_NS, 1=FIRST_ONLY, 2=NO_UNSHARE
+        # Default to FIRST_ONLY if not specified
         
         # Flag file to track first session
         FIRST_SESSION_FLAG="$PROOT_TMP_DIR/../first_session_pid"
@@ -189,8 +190,8 @@ EOFSCRIPT
             chmod +x "$PROOT_TMP_DIR/chroot-exec.sh"
             
             # Export variables for the script
-            export UNSHARE_MODE
             export FIRST_SESSION_FLAG
+            export UNSHARE_MODE
             
             # Execute with unshare, using exec to preserve PID
             exec unshare -C -i -m -n -p -u -f --mount-proc "$PROOT_TMP_DIR/chroot-exec.sh" "$ALPINE_DIR" "$@"
@@ -215,7 +216,8 @@ EOFSCRIPT
         
     *)
         echo "Unknown mode: $MODE"
-        echo "Usage: $0 [proot|chroot]"
+        echo "Usage: $0 [proot|chroot] [unshare_mode]"
+        echo "  unshare_mode: 0=OWN_NS, 1=FIRST_ONLY (default), 2=NO_UNSHARE"
         exit 1
         ;;
 esac

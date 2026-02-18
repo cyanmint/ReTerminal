@@ -105,10 +105,7 @@ object MkSession {
                 env.add("DEBUG_OUTPUT=1")
             }
 
-            // Add unshare mode for CHROOT mode
-            if (workingMode == WorkingMode.CHROOT) {
-                env.add("UNSHARE_MODE=${com.rk.settings.Settings.unshare_mode}")
-            }
+            // Note: Unshare mode is now passed as argument to init-launcher.sh, not as env var
 
 
 
@@ -135,8 +132,8 @@ object MkSession {
 
             val shell = if (pendingCommand == null) {
                 args = when (workingMode) {
-                    WorkingMode.ALPINE -> arrayOf("-c", launcherFile.absolutePath, "proot")
-                    WorkingMode.CHROOT -> arrayOf("-c", launcherFile.absolutePath, "chroot")
+                    WorkingMode.ALPINE -> arrayOf("-c", "${launcherFile.absolutePath} proot")
+                    WorkingMode.CHROOT -> arrayOf("-c", "${launcherFile.absolutePath} chroot ${com.rk.settings.Settings.unshare_mode}")
                     else -> arrayOf()
                 }
                 "/system/bin/sh"
