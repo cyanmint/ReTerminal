@@ -93,6 +93,10 @@ object Settings {
         get() = Preference.getBoolean(key = "force_soft_keyboard", default = true)
         set(value) = Preference.setBoolean(key = "force_soft_keyboard",value)
 
+    var debug_output
+        get() = Preference.getBoolean(key = "debug_output", default = false)
+        set(value) = Preference.setBoolean(key = "debug_output",value)
+
 
 
 }

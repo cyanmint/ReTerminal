@@ -2,6 +2,9 @@
 # Chroot mode with unshare/nsenter support
 set -e
 
+# Enable debug output if DEBUG_OUTPUT is set
+[ "$DEBUG_OUTPUT" = "1" ] && set -x
+
 ALPINE_DIR=$PREFIX/local/alpine
 
 mkdir -p "$ALPINE_DIR"

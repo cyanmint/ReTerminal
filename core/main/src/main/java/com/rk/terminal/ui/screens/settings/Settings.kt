@@ -225,6 +225,15 @@ fun Settings(modifier: Modifier = Modifier,navController: NavController,mainActi
                 })
 
             SettingsToggle(
+                label = "Debug Output",
+                description = "echo commands before executing them",
+                showSwitch = true,
+                default = Settings.debug_output,
+                sideEffect = {
+                    Settings.debug_output = it
+                })
+
+            SettingsToggle(
                 label = "All file access",
                 description = "enable access to /sdcard and /storage",
                 showSwitch = false,

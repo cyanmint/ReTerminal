@@ -96,6 +96,10 @@ object MkSession {
                 env.add("SECCOMP=1")
             }
 
+            if (com.rk.settings.Settings.debug_output) {
+                env.add("DEBUG_OUTPUT=1")
+            }
+
             // Add unshare mode for CHROOT mode
             if (workingMode == WorkingMode.CHROOT) {
                 env.add("UNSHARE_MODE=${com.rk.settings.Settings.unshare_mode}")
