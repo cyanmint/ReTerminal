@@ -226,7 +226,7 @@ fun Settings(modifier: Modifier = Modifier,navController: NavController,mainActi
 
             SettingsToggle(
                 label = "Debug Output",
-                description = "echo commands before executing them",
+                description = "Echo commands before executing them",
                 showSwitch = true,
                 default = Settings.debug_output,
                 sideEffect = {
@@ -239,12 +239,12 @@ fun Settings(modifier: Modifier = Modifier,navController: NavController,mainActi
                 title = { Text("Custom Init Script") },
                 description = { 
                     Text(if (customScriptPath.isEmpty()) 
-                        "Using default script - tap to set custom" 
+                        "Using default script - Tap to enable custom script" 
                         else "Custom: ${customScriptPath.substringAfterLast('/')}") 
                 },
                 onClick = {
-                    // For now, show info about placing custom script
-                    // In a full implementation, this would open a file picker
+                    // Set default custom script path for user to place their script
+                    // User should manually create the file at this location
                     val defaultPath = "${mainActivity.filesDir}/custom-init.sh"
                     if (customScriptPath.isEmpty()) {
                         customScriptPath = defaultPath

@@ -7,7 +7,13 @@
 
 MODE="${1:-proot}"
 UNSHARE_MODE="${2:-1}"
-shift 2
+
+# Shift arguments based on how many were provided
+if [ $# -ge 2 ]; then
+    shift 2
+elif [ $# -ge 1 ]; then
+    shift 1
+fi
 
 # Common setup
 ALPINE_DIR=$PREFIX/local/alpine
@@ -151,47 +157,47 @@ case "$MODE" in
         if [ "$SHOULD_UNSHARE" -eq 1 ]; then
             # Unshare mode: Create new namespaces and run init
             # Create a script to run in the namespace
-            cat > "$PROOT_TMP_DIR/chroot-exec.sh" << 'EOFSCRIPT'
+            # Export variables before creating the script
+            export FIRST_SESSION_FLAG
+            export UNSHARE_MODE
+            
+            cat > "$PROOT_TMP_DIR/chroot-exec.sh" << EOFSCRIPT
 #!/system/bin/sh
 set -e
 
-# $1 is ALPINE_DIR, shift to get remaining args
-ALPINE_DIR="$1"
+# \$1 is ALPINE_DIR, shift to get remaining args
+ALPINE_DIR="\$1"
 shift
 
 # Save our PID for FIRST_ONLY mode
-if [ "$UNSHARE_MODE" -eq 1 ] && [ -n "$FIRST_SESSION_FLAG" ]; then
-    echo $$ > "$FIRST_SESSION_FLAG"
+if [ "\$UNSHARE_MODE" -eq 1 ] && [ -n "\$FIRST_SESSION_FLAG" ]; then
+    echo \$\$ > "\$FIRST_SESSION_FLAG"
 fi
 
 # Mount system directories
 for system_mnt in /apex /odm /product /system /system_ext /vendor; do
-    if [ -e "$system_mnt" ]; then
-        mkdir -p "$ALPINE_DIR$system_mnt" 2>/dev/null || true
-        mount --bind "$system_mnt" "$ALPINE_DIR$system_mnt" 2>/dev/null || true
+    if [ -e "\$system_mnt" ]; then
+        mkdir -p "\$ALPINE_DIR\$system_mnt" 2>/dev/null || true
+        mount --bind "\$system_mnt" "\$ALPINE_DIR\$system_mnt" 2>/dev/null || true
     fi
 done
 
 # Mount proc, sys, dev
-mkdir -p "$ALPINE_DIR/proc" "$ALPINE_DIR/sys" "$ALPINE_DIR/dev" 2>/dev/null || true
-mount -t proc proc "$ALPINE_DIR/proc" 2>/dev/null || true
-mount -t sysfs sys "$ALPINE_DIR/sys" 2>/dev/null || true
-mount --bind /dev "$ALPINE_DIR/dev" 2>/dev/null || true
+mkdir -p "\$ALPINE_DIR/proc" "\$ALPINE_DIR/sys" "\$ALPINE_DIR/dev" 2>/dev/null || true
+mount -t proc proc "\$ALPINE_DIR/proc" 2>/dev/null || true
+mount -t sysfs sys "\$ALPINE_DIR/sys" 2>/dev/null || true
+mount --bind /dev "\$ALPINE_DIR/dev" 2>/dev/null || true
 
 # Mount storage
-mkdir -p "$ALPINE_DIR/sdcard" "$ALPINE_DIR/storage" 2>/dev/null || true
-mount --bind /sdcard "$ALPINE_DIR/sdcard" 2>/dev/null || true
-mount --bind /storage "$ALPINE_DIR/storage" 2>/dev/null || true
+mkdir -p "\$ALPINE_DIR/sdcard" "\$ALPINE_DIR/storage" 2>/dev/null || true
+mount --bind /sdcard "\$ALPINE_DIR/sdcard" 2>/dev/null || true
+mount --bind /storage "\$ALPINE_DIR/storage" 2>/dev/null || true
 
 # Chroot and exec init as PID 1
-exec chroot "$ALPINE_DIR" /sbin/init "$@"
+exec chroot "\$ALPINE_DIR" /sbin/init "\$@"
 EOFSCRIPT
             
             chmod +x "$PROOT_TMP_DIR/chroot-exec.sh"
-            
-            # Export variables for the script
-            export FIRST_SESSION_FLAG
-            export UNSHARE_MODE
             
             # Execute with unshare, using exec to preserve PID
             exec unshare -C -i -m -n -p -u -f --mount-proc "$PROOT_TMP_DIR/chroot-exec.sh" "$ALPINE_DIR" "$@"
