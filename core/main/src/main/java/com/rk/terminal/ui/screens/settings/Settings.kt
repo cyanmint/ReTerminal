@@ -225,6 +225,15 @@ fun Settings(modifier: Modifier = Modifier,navController: NavController,mainActi
                 })
 
             SettingsToggle(
+                label = "Use su",
+                description = "Attempt to use su for privilege escalation",
+                showSwitch = true,
+                default = Settings.use_su,
+                sideEffect = {
+                    Settings.use_su = it
+                })
+
+            SettingsToggle(
                 label = "Debug Output",
                 description = "Echo commands before executing them",
                 showSwitch = true,

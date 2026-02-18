@@ -97,15 +97,7 @@ object MkSession {
                 env.add("PROOT_LOADER=${applicationInfo.nativeLibraryDir}/libproot-loader.so")
             }
 
-            if (Settings.seccomp) {
-                env.add("SECCOMP=1")
-            }
-
-            if (com.rk.settings.Settings.debug_output) {
-                env.add("DEBUG_OUTPUT=1")
-            }
-
-            // Note: Unshare mode is now passed as argument to init-launcher.sh, not as env var
+            // Note: debug_output and seccomp are now passed as arguments to init-launcher.sh, not as env vars
 
 
 
@@ -131,9 +123,28 @@ object MkSession {
             val args: Array<String>
 
             val shell = if (pendingCommand == null) {
+                // Convert boolean settings to 0/1 for arguments
+                val debugFlag = if (com.rk.settings.Settings.debug_output) "1" else "0"
+                val seccompFlag = if (Settings.seccomp) "1" else "0"
+                val useSuFlag = if (com.rk.settings.Settings.use_su) "1" else "0"
+                
                 args = when (workingMode) {
-                    WorkingMode.ALPINE -> arrayOf("-c", "${launcherFile.absolutePath} proot")
-                    WorkingMode.CHROOT -> arrayOf("-c", "${launcherFile.absolutePath} chroot ${com.rk.settings.Settings.unshare_mode}")
+                    WorkingMode.ALPINE -> arrayOf(
+                        launcherFile.absolutePath,
+                        "proot",
+                        "1",  // unshare_mode (not used in proot, but required arg)
+                        debugFlag,
+                        seccompFlag,
+                        useSuFlag
+                    )
+                    WorkingMode.CHROOT -> arrayOf(
+                        launcherFile.absolutePath,
+                        "chroot",
+                        com.rk.settings.Settings.unshare_mode.toString(),
+                        debugFlag,
+                        seccompFlag,
+                        useSuFlag
+                    )
                     else -> arrayOf()
                 }
                 "/system/bin/sh"

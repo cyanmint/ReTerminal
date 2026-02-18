@@ -1,19 +1,33 @@
 #!/system/bin/sh
 # Unified launcher script for Alpine Linux container modes
-# Usage: init-launcher.sh [proot|chroot] [unshare_mode]
-
-# Enable debug output if DEBUG_OUTPUT is set
-[ "$DEBUG_OUTPUT" = "1" ] && set -x
+# Usage: init-launcher.sh <mode> <unshare_mode> <debug_output> <seccomp> <use_su> [args...]
+#   mode: proot|chroot
+#   unshare_mode: 0=OWN_NS, 1=FIRST_ONLY, 2=NO_UNSHARE (only for chroot)
+#   debug_output: 0|1 (enable set -x)
+#   seccomp: 0|1 (seccomp flag for compatibility)
+#   use_su: 0|1 (attempt to use su for privilege escalation)
 
 MODE="${1:-proot}"
 UNSHARE_MODE="${2:-1}"
+DEBUG_OUTPUT="${3:-0}"
+SECCOMP="${4:-0}"
+USE_SU="${5:-0}"
 
-# Shift arguments based on how many were provided
-if [ $# -ge 2 ]; then
+# Shift all our arguments
+if [ $# -ge 5 ]; then
+    shift 5
+elif [ $# -ge 4 ]; then
+    shift 4
+elif [ $# -ge 3 ]; then
+    shift 3
+elif [ $# -ge 2 ]; then
     shift 2
 elif [ $# -ge 1 ]; then
     shift 1
 fi
+
+# Enable debug output if requested via argument
+[ "$DEBUG_OUTPUT" = "1" ] && set -x
 
 # Common setup
 ALPINE_DIR=$PREFIX/local/alpine
@@ -222,8 +236,12 @@ EOFSCRIPT
         
     *)
         echo "Unknown mode: $MODE"
-        echo "Usage: $0 [proot|chroot] [unshare_mode]"
+        echo "Usage: $0 <mode> <unshare_mode> <debug_output> <seccomp> <use_su> [args...]"
+        echo "  mode: proot|chroot"
         echo "  unshare_mode: 0=OWN_NS, 1=FIRST_ONLY (default), 2=NO_UNSHARE"
+        echo "  debug_output: 0|1 (enable set -x)"
+        echo "  seccomp: 0|1 (seccomp flag)"
+        echo "  use_su: 0|1 (attempt privilege escalation)"
         exit 1
         ;;
 esac
