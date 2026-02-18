@@ -233,6 +233,35 @@ fun Settings(modifier: Modifier = Modifier,navController: NavController,mainActi
                     Settings.debug_output = it
                 })
 
+            var customScriptPath by remember { mutableStateOf(Settings.custom_script_path) }
+            
+            SettingsCard(
+                title = { Text("Custom Init Script") },
+                description = { 
+                    Text(if (customScriptPath.isEmpty()) 
+                        "Using default script - tap to set custom" 
+                        else "Custom: ${customScriptPath.substringAfterLast('/')}") 
+                },
+                onClick = {
+                    // For now, show info about placing custom script
+                    // In a full implementation, this would open a file picker
+                    val defaultPath = "${mainActivity.filesDir}/custom-init.sh"
+                    if (customScriptPath.isEmpty()) {
+                        customScriptPath = defaultPath
+                        Settings.custom_script_path = defaultPath
+                    }
+                })
+            
+            if (customScriptPath.isNotEmpty()) {
+                SettingsCard(
+                    title = { Text("Reset to Default Script") },
+                    description = { Text("Remove custom script and use built-in default") },
+                    onClick = {
+                        customScriptPath = ""
+                        Settings.custom_script_path = ""
+                    })
+            }
+
             SettingsToggle(
                 label = "All file access",
                 description = "enable access to /sdcard and /storage",

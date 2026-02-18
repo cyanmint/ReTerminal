@@ -41,26 +41,31 @@ object MkSession {
 
             val workingDir = pendingCommand?.workingDir ?: alpineHomeDir().path
 
-            val initFile: File = localBinDir().child("init-host")
-
-            if (initFile.exists().not()){
-                initFile.createFileIfNot()
-                initFile.writeText(assets.open("init-host.sh").bufferedReader().use { it.readText() })
+            // Create unified launcher script
+            val launcherFile: File = localBinDir().child("init-launcher")
+            
+            // Check if custom script is configured
+            val customScriptPath = com.rk.settings.Settings.custom_script_path
+            if (customScriptPath.isNotEmpty() && File(customScriptPath).exists()) {
+                // Use custom script
+                if (launcherFile.exists().not() || File(customScriptPath).lastModified() > launcherFile.lastModified()) {
+                    launcherFile.createFileIfNot()
+                    File(customScriptPath).copyTo(launcherFile, overwrite = true)
+                }
+            } else {
+                // Use default launcher script
+                if (launcherFile.exists().not()) {
+                    launcherFile.createFileIfNot()
+                    launcherFile.writeText(assets.open("init-launcher.sh").bufferedReader().use { it.readText() })
+                }
             }
 
-
+            // Keep init.sh for container entrypoint
             localBinDir().child("init").apply {
                 if (exists().not()){
                     createFileIfNot()
                     writeText(assets.open("init.sh").bufferedReader().use { it.readText() })
                 }
-            }
-
-            // Create init-chroot script for CHROOT mode
-            val initChrootFile: File = localBinDir().child("init-chroot")
-            if (initChrootFile.exists().not()){
-                initChrootFile.createFileIfNot()
-                initChrootFile.writeText(assets.open("init-chroot.sh").bufferedReader().use { it.readText() })
             }
 
 
@@ -130,8 +135,8 @@ object MkSession {
 
             val shell = if (pendingCommand == null) {
                 args = when (workingMode) {
-                    WorkingMode.ALPINE -> arrayOf("-c", initFile.absolutePath)
-                    WorkingMode.CHROOT -> arrayOf("-c", initChrootFile.absolutePath)
+                    WorkingMode.ALPINE -> arrayOf("-c", launcherFile.absolutePath, "proot")
+                    WorkingMode.CHROOT -> arrayOf("-c", launcherFile.absolutePath, "chroot")
                     else -> arrayOf()
                 }
                 "/system/bin/sh"

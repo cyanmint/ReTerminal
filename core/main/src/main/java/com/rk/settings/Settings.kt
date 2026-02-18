@@ -97,6 +97,10 @@ object Settings {
         get() = Preference.getBoolean(key = "debug_output", default = false)
         set(value) = Preference.setBoolean(key = "debug_output", value)
 
+    var custom_script_path
+        get() = Preference.getString(key = "custom_script_path", default = "")
+        set(value) = Preference.setString(key = "custom_script_path", value)
+
 
 
 }
